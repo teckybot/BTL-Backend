@@ -1,0 +1,24 @@
+{
+  "name": "payment-gateway-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "mongoose": "^8.15.1",
+    "pdfkit": "^0.17.1",
+    "razorpay": "^2.9.6",
+    "zeptomail": "^6.2.1"
+  }
+}
