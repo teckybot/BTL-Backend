@@ -1,4 +1,4 @@
-
+  
 import mongoose from "mongoose";
 
 const counterSchema = new mongoose.Schema({
