@@ -2,7 +2,7 @@ import Team from "../../models/Team.js";
 import School from "../../models/School.js";
 import { eventCodeMap } from "../../constants/eventCodes.js";
 import { generateTeamId } from "../../utils/teamIdGenerator.js";
-import { getNextTeamSequence } from "../../services/sequenceService.js";
+import { getCurrentTeamSequence, incrementTeamSequence } from "../../services/sequenceService.js";
 import { getEventAvailabilityForSchool } from "../../services/eventService.js";
 
 export const registerTeam = async (req, res) => {
@@ -46,16 +46,20 @@ export const registerTeam = async (req, res) => {
     }
 
     // Step 4: Prevent same student registering for multiple teams
-    const memberPhones = members.map((m) => m.phone);
-    const duplicateMembers = await Team.find({
-      schoolRegId,
-      "members.phone": { $in: memberPhones },
-    });
-
-    // if (duplicateMembers.length > 0) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "One or more students are already registered in another team." });
+    // for (const member of members) {
+    //   const existingStudent = await Team.findOne({
+    //     members: {
+    //       $elemMatch: {
+    //         name: member.name,
+    //         phone: member.phone
+    //       }
+    //     }
+    //   });
+    //   if (existingStudent) {
+    //     return res.status(409).json({
+    //       message: `Student ${member.name} (${member.phone}) already registered in another team`
+    //     });
+    //   }
     // }
 
     // Step 5: Validate event code and availability
@@ -77,10 +81,7 @@ export const registerTeam = async (req, res) => {
     }
 
 
-    // Step 6: Generate team ID
-    // const sequenceNumber = await getNextTeamSequence(event);
-    // const teamId = generateTeamId(event, sequenceNumber);
-
+    // Step 6: All validations passed → now generate team ID
     const state = school.state;
     if (!state) {
       return res.status(400).json({
@@ -88,9 +89,11 @@ export const registerTeam = async (req, res) => {
       });
     }
     const eventCode = event; // frontend already sends "ASB"
-    const sequenceNumber = await getNextTeamSequence(eventCode, state);
-    const teamId = generateTeamId(eventCode, sequenceNumber, state);
+    // 1. Get current sequence
+    const currentSequence = await getCurrentTeamSequence(eventCode, state);
 
+     // 2. Generate Team ID (sequence + 1, since we haven't incremented yet)
+    const teamRegId = generateTeamId(eventCode, currentSequence + 1, state);
 
 
     // Step 7: Save team
@@ -101,15 +104,18 @@ export const registerTeam = async (req, res) => {
       event,
       state,
       members,
-      teamRegId: teamId
+      teamRegId
     });
 
     await newTeam.save();
 
+    //  4. Increment the sequence
+    await incrementTeamSequence(eventCode, state);
+
     res.status(201).json({
       success: true,
       message: "Team registered successfully.",
-      teamId,
+      teamRegId,
     });
   } catch (err) {
     console.error("Error registering team:", err);

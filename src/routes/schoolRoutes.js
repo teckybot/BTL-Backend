@@ -1,7 +1,7 @@
 import express from "express";
 import { validateForm } from "../controllers/schoolValidationController.js";
 import { validateEmailDomain, checkDuplicateEmails } from "../services/schoolValidationService.js";
-import {downloadSchoolPDF} from "../controllers/downloadSchoolPDF.js"
+import {downloadSchoolPDF} from "../controllers/downloadPDF.js"
 
 const router = express.Router();
 

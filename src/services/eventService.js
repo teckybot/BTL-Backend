@@ -1,4 +1,3 @@
-
 import Team from "../models/Team.js";
 import { eventCodeMap } from "../constants/eventCodes.js";
 
@@ -22,19 +21,11 @@ export const getEventAvailabilityForSchool = async (schoolRegId) => {
   let disabledEvents = [];
 
   if (totalTeams >= maxTeams) {
-    return {
-      availableEvents: [],
-      disabledEvents: allEventCodes,
-      totalTeams,
-      remainingSlots,
-      eventCounts,
-    };
-  }
-
-  if (remainingSlots === 1) {
-    availableEvents = allEventCodes.filter((event) => eventCounts[event] === 0);
-    disabledEvents = allEventCodes.filter((event) => eventCounts[event] > 0);
+    // Max limit reached: all events disabled
+    availableEvents = [];
+    disabledEvents = allEventCodes;
   } else {
+    // Show events where count < 2 (including those with 1 team already)
     availableEvents = allEventCodes.filter((event) => eventCounts[event] < 2);
     disabledEvents = allEventCodes.filter((event) => eventCounts[event] >= 2);
   }
