@@ -1,4 +1,4 @@
-// controllers/verifyPaymentController.js
+
 import crypto from "crypto";
 import School from "../models/School.js";
 import Payment from "../models/Payment.js";
@@ -62,7 +62,7 @@ export const verifyPayment = async (req, res) => {
 
     await incrementSchoolSequence(stateCode, districtCode);
 
-    // ✅ Send confirmation email
+    // Send confirmation email
     await sendSchoolBatchEmail({
       recipients: [{
         email: schoolEmail,

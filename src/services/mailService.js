@@ -40,3 +40,66 @@ export const sendSchoolBatchEmail = async ({ recipients, templateKey }) => {
     throw error;
   }
 };
+
+// Team Batch email
+
+// export const sendTeamConfirmationEmail = async ({ recipients, templateKey }) => {
+//   const primaryRecipient = recipients[0];
+
+//   const mailRequest = {
+//     mail_template_key: templateKey,
+//     from: {
+//       address: "noreply@bharatteckleague.com",
+//       name: "Bharat Teck League",
+//     },
+//     to: [
+//       {
+//         email_address: {
+//           address: primaryRecipient.email,
+//           name: primaryRecipient.name,
+//         },
+//         merge_info: primaryRecipient.mergeData, // ✅ Correct key used
+//       },
+//     ],
+    
+//   };
+
+//   try {
+//     const response = await client.mailBatchWithTemplate(mailRequest);
+//     return response;
+//   } catch (error) {
+//     console.error("Error sending team confirmation email:", error);
+//     throw error;
+//   }
+// };
+
+export const sendTeamConfirmationEmail = async ({ recipients, templateKey }) => {
+  const toArray = recipients.map(({ email, name, mergeData }) => ({
+    email_address: {
+      address: email,
+      name,
+    },
+    merge_info: mergeData,
+  }));
+
+  const mailRequest = {
+    mail_template_key: templateKey,
+    from: {
+      address: "noreply@bharatteckleague.com",
+      name: "Bharat Teck League",
+    },
+    to: toArray,
+  };
+
+  try {
+    const response = await client.mailBatchWithTemplate(mailRequest);
+    return response;
+  } catch (error) {
+    console.error("Error sending team confirmation email:", error);
+    throw error;
+  }
+};
+
+
+
+

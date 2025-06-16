@@ -4,6 +4,8 @@ import { eventCodeMap } from "../../constants/eventCodes.js";
 import { generateTeamId } from "../../utils/teamIdGenerator.js";
 import { getCurrentTeamSequence, incrementTeamSequence } from "../../services/sequenceService.js";
 import { getEventAvailabilityForSchool } from "../../services/eventService.js";
+import { generateTeamMergeInfo } from "../../utils/emailMergeInfo.js";
+import { sendTeamConfirmationEmail } from "../../services/mailService.js";
 
 export const registerTeam = async (req, res) => {
   try {
@@ -92,8 +94,37 @@ export const registerTeam = async (req, res) => {
     // 1. Get current sequence
     const currentSequence = await getCurrentTeamSequence(eventCode, state);
 
-     // 2. Generate Team ID (sequence + 1, since we haven't incremented yet)
+    // 2. Generate Team ID (sequence + 1, since we haven't incremented yet)
     const teamRegId = generateTeamId(eventCode, currentSequence + 1, state);
+
+    const mergeInfo = {
+      school_reg_id: school.schoolRegId,
+      team_size: String(teamSize),
+      district: school.district,
+      event_name: eventCodeMap[event],
+      school_name: school.schoolName,
+      coordinator_name: school.coordinatorName,
+      team_id: teamRegId,
+      state: school.state,
+      team_name: teamName,
+    };
+
+
+    await sendTeamConfirmationEmail({
+      recipients: [
+        {
+          email: school.schoolEmail,
+          name: school.schoolName,
+          mergeData: mergeInfo, 
+        },
+        {
+      email: school.coordinatorEmail,
+      name: school.coordinatorName,
+      mergeData: mergeInfo, // same mergeData for both
+    },
+      ],
+      templateKey:"2518b.70f888d667329f26.k1.08bdb030-4a9f-11f0-bbb3-8e9a6c33ddc2.197785832b3",
+    });
 
 
     // Step 7: Save team
@@ -111,6 +142,8 @@ export const registerTeam = async (req, res) => {
 
     //  4. Increment the sequence
     await incrementTeamSequence(eventCode, state);
+
+
 
     res.status(201).json({
       success: true,
