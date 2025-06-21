@@ -2,6 +2,7 @@ import School from "../../models/School.js";
 import Team from "../../models/Team.js";
 
 export const verifySchoolEligibility = async (req, res) => {
+  console.log('route hit the checkpoint')
   try {
     const { schoolRegId } = req.params;
 
