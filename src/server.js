@@ -3,13 +3,15 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import schoolRoutes from "./routes/schoolRoutes.js";
-import paymentRoutes from "./routes/paymentRoutes.js";
+import schoolRoutes from "./routes/school/schoolRoutes.js";
+import paymentRoutes from "./routes/payment/paymentRoutes.js";
 import razorpayWebhookHandler from "./webhooks/razorpaywebhook2.js";
 
 import teamRoutes from "./routes/team/teamRoutes.js";
 import checkpointRoutes from "./routes/team/checkpointRoutes.js";
 import eventRoutes from "./routes/team/eventRoutes.js";
+
+import submissionRoutes from "./routes/videouploadRoutes/submissionRoutes.js";
 
 dotenv.config();
 
@@ -64,6 +66,9 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/checkpoint", checkpointRoutes);
 app.use("/api/events", eventRoutes);
+
+//File submission Routes
+app.use("/api/submission", submissionRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

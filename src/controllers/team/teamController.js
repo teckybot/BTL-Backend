@@ -159,3 +159,17 @@ export const registerTeam = async (req, res) => {
     });
   }
 };
+
+export const getTeamDetails = async (req, res) => {
+  try {
+    const { teamRegId } = req.params;
+    const team = await Team.findOne({ teamRegId });
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Team not found" });
+    }
+    return res.status(200).json({ success: true, team });
+  } catch (err) {
+    console.error("Error fetching team details:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

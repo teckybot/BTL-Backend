@@ -32,3 +32,5 @@ build/
 
 src/test/
 src/webhooks/razorpayWebhookHandler.js
+
+src/credentials.json
