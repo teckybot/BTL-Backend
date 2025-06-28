@@ -6,6 +6,7 @@ import { getCurrentTeamSequence, incrementTeamSequence } from "../../services/se
 import { getEventAvailabilityForSchool } from "../../services/eventService.js";
 import { generateTeamMergeInfo } from "../../utils/emailMergeInfo.js";
 import { sendTeamConfirmationEmail } from "../../services/mailService.js";
+import VideoSubmission from "../../models/VideoSubmission.js";
 
 export const registerTeam = async (req, res) => {
   try {
@@ -115,15 +116,15 @@ export const registerTeam = async (req, res) => {
         {
           email: school.schoolEmail,
           name: school.schoolName,
-          mergeData: mergeInfo, 
+          mergeData: mergeInfo,
         },
         {
-      email: school.coordinatorEmail,
-      name: school.coordinatorName,
-      mergeData: mergeInfo, // same mergeData for both
-    },
+          email: school.coordinatorEmail,
+          name: school.coordinatorName,
+          mergeData: mergeInfo, // same mergeData for both
+        },
       ],
-      templateKey:"2518b.70f888d667329f26.k1.08bdb030-4a9f-11f0-bbb3-8e9a6c33ddc2.197785832b3",
+      templateKey: "2518b.70f888d667329f26.k1.08bdb030-4a9f-11f0-bbb3-8e9a6c33ddc2.197785832b3",
     });
 
 
@@ -142,8 +143,6 @@ export const registerTeam = async (req, res) => {
 
     //  4. Increment the sequence
     await incrementTeamSequence(eventCode, state);
-
-
 
     res.status(201).json({
       success: true,
@@ -171,5 +170,134 @@ export const getTeamDetails = async (req, res) => {
   } catch (err) {
     console.error("Error fetching team details:", err);
     return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const listTeams = async (req, res) => {
+  try {
+    const { state, district, event, status, search } = req.query;
+    const filter = {};
+    if (state) filter.state = state;
+    if (event) filter.event = event;
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      filter.$or = [
+        { teamName: regex },
+        { event: regex },
+        { schoolRegId: regex },
+        { teamRegId: regex }
+      ];
+    }
+    // Fetch teams
+    let teams = await Team.find(filter).lean();
+    // Add district from school
+    teams = await Promise.all(
+      teams.map(async (team) => {
+        const school = await School.findOne({ schoolRegId: team.schoolRegId });
+        return {
+          ...team,
+          district: school ? school.district : 'N/A'
+        };
+      })
+    );
+    // Fetch all video submissions
+    const videoSubs = await VideoSubmission.find({});
+    const submittedSet = new Set(videoSubs.map(v => v.teamRegId));
+    // Add submitted boolean
+    teams = teams.map(team => ({
+      ...team,
+      submitted: submittedSet.has(team.teamRegId)
+    }));
+    // Status filter
+    if (status === 'qualified') teams = teams.filter(team => team.isQualified);
+    if (status === 'submitted') teams = teams.filter(team => team.submitted);
+    if (status === 'paid') teams = teams.filter(team => team.qualifierPaid);
+    // District filter (after join)
+    if (district) teams = teams.filter(team => team.district === district);
+    res.json(teams);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch teams', error: err.message });
+  }
+};
+
+
+export const qualifyTeam = async (req, res) => {
+  try {
+    const { teamRegId } = req.params;
+    const team = await Team.findOneAndUpdate(
+      { teamRegId },
+      { isQualified: true },
+      { new: true }
+    );
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' });
+    }
+    res.json({ success: true, team });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to qualify team', error: err.message });
+  }
+};
+
+export const listTeamStats = async (req, res) => {
+  try {
+    const { state, district, event, status, search } = req.query;
+    const filter = {};
+    if (state) filter.state = state;
+    if (event) filter.event = event;
+    if (status === 'qualified') filter.isQualified = true;
+    if (status === 'not_qualified') filter.isQualified = false;
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      filter.$or = [
+        { teamName: regex },
+        { event: regex },
+        { schoolRegId: regex },
+        { teamRegId: regex }
+      ];
+    }
+
+    // Get all teams first
+    const allTeams = await Team.find({});
+    const qualifiedTeams = await Team.find({ isQualified: true });
+
+    // Filter teams based on district (if specified)
+    let filteredTeams = allTeams;
+    if (district) {
+      const teamsWithDistrict = await Promise.all(
+        allTeams.map(async (team) => {
+          const school = await School.findOne({ schoolRegId: team.schoolRegId });
+          return {
+            ...team.toObject(),
+            district: school ? school.district : 'N/A'
+          };
+        })
+      );
+      filteredTeams = teamsWithDistrict.filter(team => team.district === district);
+    }
+
+    // Apply other filters
+    let finalFilteredTeams = filteredTeams;
+    if (state) finalFilteredTeams = finalFilteredTeams.filter(team => team.state === state);
+    if (event) finalFilteredTeams = finalFilteredTeams.filter(team => team.event === event);
+    if (status === 'qualified') finalFilteredTeams = finalFilteredTeams.filter(team => team.isQualified);
+    if (status === 'not_qualified') finalFilteredTeams = finalFilteredTeams.filter(team => !team.isQualified);
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      finalFilteredTeams = finalFilteredTeams.filter(team =>
+        regex.test(team.teamName) ||
+        regex.test(team.event) ||
+        regex.test(team.schoolRegId) ||
+        regex.test(team.teamRegId)
+      );
+    }
+
+    const total = allTeams.length;
+    const active = allTeams.length; // If have an 'active' field, adjust this
+    const qualified = qualifiedTeams.length;
+    const filtered = finalFilteredTeams.length;
+
+    res.json({ total, active, qualified, filtered });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch team stats', error: err.message });
   }
 };

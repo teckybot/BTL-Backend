@@ -1,10 +1,11 @@
-
 import Razorpay from "razorpay";
+import crypto from "crypto";
 
 export const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_SECRET,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
+
 
 export const createRazorpayOrder = async (amount, receiptId,notes = {}) => {
   const options = {
@@ -21,4 +22,11 @@ export const createRazorpayOrder = async (amount, receiptId,notes = {}) => {
   throw error;
 }
 
+};
+
+export const verifyRazorpaySignature = (orderId, paymentId, signature) => {
+  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+  hmac.update(orderId + "|" + paymentId);
+  const generatedSignature = hmac.digest("hex");
+  return generatedSignature === signature;
 };

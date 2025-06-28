@@ -12,6 +12,7 @@ import checkpointRoutes from "./routes/team/checkpointRoutes.js";
 import eventRoutes from "./routes/team/eventRoutes.js";
 
 import submissionRoutes from "./routes/videouploadRoutes/submissionRoutes.js";
+import qualifierRoutes from "./routes/qualifierRoutes.js";
 
 dotenv.config();
 
@@ -22,10 +23,29 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
     : ['http://localhost:5173', 'http://127.0.0.1:5173','https://btlregistrationsystem.vercel.app'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+
+// Logger Middleware 
+const enableDevLogging = async () => {
+  if (process.env.NODE_ENV !== 'production') {
+    const morgan = (await import('morgan')).default;
+    app.use(morgan('dev'));
+  } else {
+    app.use((req, res, next) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        const ms = Date.now() - start;
+        console.log(`[${new Date().toISOString()}] ${req.method} ${res.statusCode} ${req.originalUrl} (${ms}ms)`);
+      });
+      next();
+    });
+  }
+};
+await enableDevLogging();
 
 // Increase JSON payload limit
 app.use(express.json({ limit: '10mb' }));
@@ -69,6 +89,13 @@ app.use("/api/events", eventRoutes);
 
 //File submission Routes
 app.use("/api/submission", submissionRoutes);
+app.use("/api/qualifier", qualifierRoutes);
+
+// Log every incoming request: method and URL
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Health check route
 app.get("/", (req, res) => {

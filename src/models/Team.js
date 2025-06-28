@@ -14,6 +14,8 @@ const teamSchema = new mongoose.Schema({
   event: { type: String, required: true },
   state: String,
   teamRegId: { type: String, required: true },
+  isQualified: { type: Boolean, default: false },
+  qualifierPaid: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 }, { collection: 'teams' });
 
