@@ -127,8 +127,7 @@ export async function getTeamPDF(req, res) {
     doc.fontSize(20).text("Qualifier Registration Details", { align: "center" });
     doc.moveDown();
     // Team Info
-    doc.fontSize(14).text(`Team Name: ${team.teamName}`);
-    doc.text(`Team ID: ${team.teamRegId}`);
+    doc.fontSize(14).text(`Team ID: ${team.teamRegId}`);
     doc.text(`Event: ${team.event}`);
     doc.text(`State: ${team.state}`);
     doc.moveDown();

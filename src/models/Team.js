@@ -8,7 +8,6 @@ const memberSchema = new mongoose.Schema({
 
 const teamSchema = new mongoose.Schema({
   schoolRegId: { type: String, required: true },
-  teamName: { type: String, required: true, unique: true },
   teamSize: { type: Number, enum: [2, 3, 4], required: true },
   members: { type: [memberSchema], required: true },
   event: { type: String, required: true },

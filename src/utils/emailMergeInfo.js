@@ -1,6 +1,5 @@
 export const generateTeamMergeInfo = ({
   schoolName,
-  teamName,
   teamId,
   eventName,
   teamSize,
@@ -11,7 +10,6 @@ export const generateTeamMergeInfo = ({
 }) => {
   return {
     team_id: teamId,
-    team_name: teamName,
     event_name: eventName,
     team_size: teamSize,
     school_name: schoolName,

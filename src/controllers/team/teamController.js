@@ -12,7 +12,6 @@ export const registerTeam = async (req, res) => {
   try {
     const {
       schoolRegId,
-      teamName,
       teamSize,
       event,
       members,
@@ -35,35 +34,6 @@ export const registerTeam = async (req, res) => {
         .status(400)
         .json({ message: "Maximum number of teams registered for this school." });
     }
-
-    // Step 3: Prevent same team name under same school
-    const duplicateTeamName = await Team.findOne({
-      schoolRegId,
-      teamName: { $regex: new RegExp(`^${teamName}$`, "i") },
-    });
-
-    if (duplicateTeamName) {
-      return res
-        .status(400)
-        .json({ message: "A team with this name is already registered." });
-    }
-
-    // Step 4: Prevent same student registering for multiple teams
-    // for (const member of members) {
-    //   const existingStudent = await Team.findOne({
-    //     members: {
-    //       $elemMatch: {
-    //         name: member.name,
-    //         phone: member.phone
-    //       }
-    //     }
-    //   });
-    //   if (existingStudent) {
-    //     return res.status(409).json({
-    //       message: `Student ${member.name} (${member.phone}) already registered in another team`
-    //     });
-    //   }
-    // }
 
     // Step 5: Validate event code and availability
     if (!event || !eventCodeMap.hasOwnProperty(event)) {
@@ -107,7 +77,6 @@ export const registerTeam = async (req, res) => {
       coordinator_name: school.coordinatorName,
       team_id: teamRegId,
       state: school.state,
-      team_name: teamName,
     };
 
 
@@ -131,7 +100,6 @@ export const registerTeam = async (req, res) => {
     // Step 7: Save team
     const newTeam = new Team({
       schoolRegId,
-      teamName,
       teamSize,
       event,
       state,
@@ -182,7 +150,6 @@ export const listTeams = async (req, res) => {
     if (search) {
       const regex = new RegExp(search, 'i');
       filter.$or = [
-        { teamName: regex },
         { event: regex },
         { schoolRegId: regex },
         { teamRegId: regex }
@@ -249,7 +216,6 @@ export const listTeamStats = async (req, res) => {
     if (search) {
       const regex = new RegExp(search, 'i');
       filter.$or = [
-        { teamName: regex },
         { event: regex },
         { schoolRegId: regex },
         { teamRegId: regex }
@@ -284,7 +250,6 @@ export const listTeamStats = async (req, res) => {
     if (search) {
       const regex = new RegExp(search, 'i');
       finalFilteredTeams = finalFilteredTeams.filter(team =>
-        regex.test(team.teamName) ||
         regex.test(team.event) ||
         regex.test(team.schoolRegId) ||
         regex.test(team.teamRegId)
