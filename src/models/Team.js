@@ -15,9 +15,11 @@ const teamSchema = new mongoose.Schema({
   teamRegId: { type: String, required: true },
   isQualified: { type: Boolean, default: false },
   qualifierPaid: { type: Boolean, default: false },
+  teamNumber: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now }
 }, { collection: 'teams' });
 
 teamSchema.index({ teamRegId: 1, event: 1, state: 1 }, { unique: true });
+teamSchema.index({ schoolRegId: 1, teamNumber: 1 }, { unique: true });
 
 export default mongoose.model("Team", teamSchema);

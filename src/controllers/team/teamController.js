@@ -143,8 +143,9 @@ export const getTeamDetails = async (req, res) => {
 
 export const listTeams = async (req, res) => {
   try {
-    const { state, district, event, status, search } = req.query;
+    const { state, district, event, status, search, schoolRegId } = req.query;
     const filter = {};
+    if (schoolRegId) filter.schoolRegId = schoolRegId;
     if (state) filter.state = state;
     if (event) filter.event = event;
     if (search) {
@@ -264,5 +265,95 @@ export const listTeamStats = async (req, res) => {
     res.json({ total, active, qualified, filtered });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch team stats', error: err.message });
+  }
+};
+
+// Validate schoolRegId and email, and return team count
+export const validateSchoolAndTeamCount = async (req, res) => {
+  try {
+    const { schoolRegId, email } = req.body;
+    if (!schoolRegId) {
+      return res.status(400).json({ valid: false, message: "School registration ID is required." });
+    }
+    const school = await School.findOne({ schoolRegId });
+    if (!school) {
+      return res.status(404).json({ valid: false, message: "Your school is not registered in our system. Please ask your school coordinator to register your school before proceeding." });
+    }
+    const teamCount = await Team.countDocuments({ schoolRegId });
+    if (!email) {
+      // Only schoolRegId provided: just return team count and school existence
+      if (teamCount >= 10) {
+        return res.status(400).json({ valid: false, message: "Maximum number of teams registered for this school.", teamCount, maxTeams: 10 });
+      }
+      return res.status(200).json({ valid: true, teamCount, maxTeams: 10 });
+    }
+    // If email is provided, validate it
+    if (school.schoolEmail !== email && school.coordinatorEmail !== email) {
+      return res.status(400).json({ valid: false, message: "Email does not match our records for this school.", teamCount, maxTeams: 10 });
+    }
+    return res.status(200).json({ valid: true, teamCount, maxTeams: 10 });
+  } catch (err) {
+    console.error("Error validating school and team count:", err);
+    return res.status(500).json({ valid: false, message: "Internal server error.", error: err.message });
+  }
+};
+
+// Batch register multiple teams for a school
+export const registerTeamsBatch = async (req, res) => {
+  try {
+    const { schoolRegId, teams } = req.body; // teams: array of { teamSize, event, members, teamNumber }
+    if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
+      return res.status(400).json({ success: false, message: "schoolRegId and teams array are required." });
+    }
+    const school = await School.findOne({ schoolRegId });
+    if (!school) {
+      return res.status(404).json({ success: false, message: "School not found." });
+    }
+    const existingTeams = await Team.find({ schoolRegId });
+    if (existingTeams.length + teams.length > 10) {
+      return res.status(400).json({ success: false, message: `Cannot register more than 10 teams for this school. Already registered: ${existingTeams.length}` });
+    }
+    // Find used teamNumbers
+    const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
+    // Validate and prepare new teams
+    const eventCodeMapKeys = Object.keys(eventCodeMap);
+    const state = school.state;
+    let currentSequences = {};
+    let newTeams = [];
+    for (const team of teams) {
+      const { teamSize, event, members, teamNumber } = team;
+      if (!event || !eventCodeMapKeys.includes(event)) {
+        return res.status(400).json({ success: false, message: `Invalid event code: ${event}` });
+      }
+      if (!teamNumber || usedNumbers.has(teamNumber)) {
+        return res.status(400).json({ success: false, message: `Invalid or duplicate team number: ${teamNumber}` });
+      }
+      usedNumbers.add(teamNumber);
+      // Get current sequence for this event/state
+      if (!currentSequences[event]) {
+        currentSequences[event] = await getCurrentTeamSequence(event, state);
+      }
+      currentSequences[event] += 1;
+      const teamRegId = generateTeamId(event, currentSequences[event], state);
+      newTeams.push({
+        schoolRegId,
+        teamSize,
+        event,
+        state,
+        members,
+        teamRegId,
+        teamNumber
+      });
+    }
+    // Save all new teams
+    const inserted = await Team.insertMany(newTeams);
+    // Increment sequence for each event
+    for (const event of Object.keys(currentSequences)) {
+      await incrementTeamSequence(event, state, currentSequences[event]);
+    }
+    return res.status(201).json({ success: true, message: `${newTeams.length} teams registered successfully.`, teams: inserted.map(t => ({ teamRegId: t.teamRegId, teamNumber: t.teamNumber })) });
+  } catch (err) {
+    console.error("Error batch registering teams:", err);
+    return res.status(500).json({ success: false, message: "Internal server error.", error: err.message });
   }
 };

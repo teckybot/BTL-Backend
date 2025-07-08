@@ -20,7 +20,7 @@ export const getAvailableEventDropdown = async (req, res) => {
     } = await getEventAvailabilityForSchool(schoolRegId);
 
     const message =
-      totalTeams >= 5
+      totalTeams >= 10
         ? "Maximum number of teams reached for this school"
         : "Event availability updated successfully";
 

@@ -14,7 +14,7 @@ export const getEventAvailabilityForSchool = async (schoolRegId) => {
   });
 
   const totalTeams = teams.length;
-  const maxTeams = 5;
+  const maxTeams = 10;
   const remainingSlots = maxTeams - totalTeams;
 
   let availableEvents = [];
