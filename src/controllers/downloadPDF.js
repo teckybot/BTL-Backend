@@ -1,5 +1,5 @@
 
-import { generateSchoolPDF,generateTeamPDF } from "../services/pdfService.js";
+import { generateSchoolPDF } from "../services/pdfService.js";
 import School from "../models/School.js";
 import Team from "../models/Team.js"
 
