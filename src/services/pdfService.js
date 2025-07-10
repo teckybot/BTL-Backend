@@ -68,7 +68,7 @@ export const generateSchoolPDF = (schoolData) => {
       // --- SCHOOL DETAILS BOX ---
       const boxMarginX = 40;
       const boxWidth = doc.page.width - 2 * boxMarginX;
-      const boxHeight = 190;
+      const boxHeight = 220;
       const detailsY = doc.y;
       doc.font("Helvetica-Bold").fontSize(14).fillColor("#1a73e8").text("School Details", boxMarginX, detailsY - 20);
       doc.save();
@@ -87,6 +87,7 @@ export const generateSchoolPDF = (schoolData) => {
       let y = detailsY + 30;
       const labelOffsetLeft = 105;
       const labelOffsetRight = 85;
+      
       // Left column
       doc.fontSize(labelFontSize).font("Helvetica-Bold").fillColor("#1a73e8").text("School ID:", leftX, y);
       doc.fontSize(valueFontSize).font("Helvetica").fillColor("#222").text(schoolData.schoolRegId, leftX + labelOffsetLeft, y, { width: colWidth - 90 });
@@ -99,25 +100,36 @@ export const generateSchoolPDF = (schoolData) => {
       y += lineHeight + rowSpacing;
       doc.font("Helvetica-Bold").fillColor("#1a73e8").text("State:", leftX, y);
       doc.font("Helvetica").fillColor("#222").text(schoolData.state, leftX + labelOffsetLeft, y, { width: colWidth - 80 });
+      y += lineHeight + rowSpacing;
+        
+      doc.font("Helvetica-Bold").fillColor("#1a73e8").text("District:", leftX, y);
+      doc.font("Helvetica").fillColor("#222").text(schoolData.district, leftX + labelOffsetLeft, y, { width: colWidth - 80 });
+      doc.y = detailsY + boxHeight + 20;
+      
       // Reset y for right column
       y = detailsY + 30;
       // Right column
       doc.font("Helvetica-Bold").fillColor("#1a73e8").text("Coordinator:", rightX, y);
       doc.font("Helvetica").fillColor("#222").text(schoolData.coordinatorName, rightX + labelOffsetRight, y, { width: colWidth - 80 });
       y += lineHeight + rowSpacing;
-      doc.font("Helvetica-Bold").fillColor("#1a73e8").text("Address:", rightX, y);
-      doc.font("Helvetica").fillColor("#222").text(schoolData.schoolAddress || "N/A", rightX + labelOffsetRight, y, { width: colWidth - 80 });
-      y += lineHeight + rowSpacing;
-      doc.font("Helvetica-Bold").fillColor("#1a73e8").text("District:", rightX, y);
-      doc.font("Helvetica").fillColor("#222").text(schoolData.district, rightX + labelOffsetRight, y, { width: colWidth - 80 });
-      doc.y = detailsY + boxHeight + 20;
 
+      // Address (can wrap)
+      doc.font("Helvetica-Bold").fillColor("#1a73e8").text('Address:',rightX,y);
+
+      const addressOptions = { width: colWidth - 80 };
+      const addressHeight = doc.heightOfString(schoolData.schoolAddress || "N/A", addressOptions);
+
+      doc.font('Helvetica').fillColor("#222").text(schoolData.schoolAddress || "N/A", rightX + labelOffsetRight, y, addressOptions);
+
+      y += lineHeight + rowSpacing;
+
+      doc.y = detailsY + boxHeight + 30;
       // --- FOOTER ---
       doc.fontSize(11).fillColor("#1a73e8").font("Helvetica-Bold")
         .text("Thank you for registering!", { align: "center" });
       doc.fontSize(9).fillColor("#00000").font("Helvetica")
         .text("For queries: support@bharatteckleague.com", { align: "center" });
-      
+
       doc.end();
     } catch (err) {
       reject(err);
@@ -198,7 +210,7 @@ export const generateBatchTeamPDF = (schoolData, teamsData, eventCodeMap) => {
       // --- SCHOOL DETAILS BOX ---
       const boxMarginX = 40;
       const boxWidth = doc.page.width - 2 * boxMarginX;
-      const boxHeight = 190;
+      const boxHeight = 220;
       const detailsY = doc.y;
 
       doc.font("Helvetica-Bold")
@@ -230,40 +242,39 @@ export const generateBatchTeamPDF = (schoolData, teamsData, eventCodeMap) => {
       const labelOffsetRight = 85;
 
       // Left column
-
       doc.fontSize(labelFontSize).font("Helvetica-Bold").fillColor("#1a73e8").text("School ID:", leftX, y);
       doc.fontSize(valueFontSize).font("Helvetica").fillColor("#222").text(schoolData.schoolRegId, leftX + labelOffsetLeft, y, { width: colWidth - 90 });
-
       y += lineHeight + rowSpacing;
-
       doc.fontSize(labelFontSize).font("Helvetica-Bold").fillColor("#1a73e8").text("School Name:", leftX, y);
       doc.fontSize(valueFontSize).font("Helvetica").fillColor("#222").text(schoolData.schoolName, leftX + labelOffsetLeft, y, { width: colWidth - 90 });
-
       y += lineHeight + rowSpacing;
-
       doc.fontSize(labelFontSize).font("Helvetica-Bold").fillColor("#1a73e8").text("Principal Name:", leftX, y);
       doc.fontSize(valueFontSize).font("Helvetica").fillColor("#222").text(schoolData.principalName, leftX + labelOffsetLeft, y, { width: colWidth - 90 });
-
       y += lineHeight + rowSpacing;
       doc.font("Helvetica-Bold").fillColor("#1a73e8").text("State:", leftX, y);
       doc.font("Helvetica").fillColor("#222").text(schoolData.state, leftX + labelOffsetLeft, y, { width: colWidth - 80 });
-
+      y += lineHeight + rowSpacing;
+        
+      doc.font("Helvetica-Bold").fillColor("#1a73e8").text("District:", leftX, y);
+      doc.font("Helvetica").fillColor("#222").text(schoolData.district, leftX + labelOffsetLeft, y, { width: colWidth - 80 });
+      doc.y = detailsY + boxHeight + 20;
+      
       // Reset y for right column
       y = detailsY + 30;
-
-
       // Right column
-
       doc.font("Helvetica-Bold").fillColor("#1a73e8").text("Coordinator:", rightX, y);
       doc.font("Helvetica").fillColor("#222").text(schoolData.coordinatorName, rightX + labelOffsetRight, y, { width: colWidth - 80 });
+      y += lineHeight + rowSpacing;
+
+      // Address (can wrap)
+      doc.font("Helvetica-Bold").fillColor("#1a73e8").text('Address:',rightX,y);
+
+      const addressOptions = { width: colWidth - 80 };
+      const addressHeight = doc.heightOfString(schoolData.schoolAddress || "N/A", addressOptions);
+
+      doc.font('Helvetica').fillColor("#222").text(schoolData.schoolAddress || "N/A", rightX + labelOffsetRight, y, addressOptions);
 
       y += lineHeight + rowSpacing;
-      doc.font("Helvetica-Bold").fillColor("#1a73e8").text("Address:", rightX, y);
-      doc.font("Helvetica").fillColor("#222").text(schoolData.schoolAddress || "N/A", rightX + labelOffsetRight, y, { width: colWidth - 80 });
-
-      y += lineHeight + rowSpacing;
-      doc.font("Helvetica-Bold").fillColor("#1a73e8").text("District:", rightX, y);
-      doc.font("Helvetica").fillColor("#222").text(schoolData.district, rightX + labelOffsetRight, y, { width: colWidth - 80 });
 
 
       doc.y = detailsY + boxHeight + 20;
