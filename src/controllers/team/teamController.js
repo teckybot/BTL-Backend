@@ -4,128 +4,132 @@ import { eventCodeMap } from "../../constants/eventCodes.js";
 import { generateTeamId } from "../../utils/teamIdGenerator.js";
 import { getCurrentTeamSequence, incrementTeamSequence } from "../../services/sequenceService.js";
 import { getEventAvailabilityForSchool } from "../../services/eventService.js";
-import { generateTeamMergeInfo } from "../../utils/emailMergeInfo.js";
-import { sendTeamConfirmationEmail } from "../../services/mailService.js";
+import { sendTeamBatchConfirmationEmail } from "../../services/mailService.js";
 import VideoSubmission from "../../models/VideoSubmission.js";
+import { generateTeamTableMerge } from "../../utils/emailMergeInfo.js";
+import { sendTeamConfirmationEmailDirect } from '../../services/mailservice2.js';
+import { getStateCode } from "../../utils/stateCodeUtils.js";
+import Counter from "../../models/Counter.js";
+import {generateBatchTeamPDF} from '../../services/pdfService.js';
 
-export const registerTeam = async (req, res) => {
-  try {
-    const {
-      schoolRegId,
-      teamSize,
-      event,
-      members,
-    } = req.body;
+// export const registerTeam = async (req, res) => {
+//   try {
+//     const {
+//       schoolRegId,
+//       teamSize,
+//       event,
+//       members,
+//     } = req.body;
 
-    // Step 1: Check if school exists
-    const school = await School.findOne({ schoolRegId });
-    if (!school) {
-      return res.status(400).json({
-        message:
-          "Your school is not registered in our system. Please ask your school coordinator to register your school before proceeding.",
-      });
-    }
+//     // Step 1: Check if school exists
+//     const school = await School.findOne({ schoolRegId });
+//     if (!school) {
+//       return res.status(400).json({
+//         message:
+//           "Your school is not registered in our system. Please ask your school coordinator to register your school before proceeding.",
+//       });
+//     }
 
-    // Step 2: Count teams already registered under the school
-    const existingTeams = await Team.find({ schoolRegId });
+//     // Step 2: Count teams already registered under the school
+//     const existingTeams = await Team.find({ schoolRegId });
 
-    if (existingTeams.length >= 5) {
-      return res
-        .status(400)
-        .json({ message: "Maximum number of teams registered for this school." });
-    }
+//     if (existingTeams.length >= 5) {
+//       return res
+//         .status(400)
+//         .json({ message: "Maximum number of teams registered for this school." });
+//     }
 
-    // Step 5: Validate event code and availability
-    if (!event || !eventCodeMap.hasOwnProperty(event)) {
-      return res.status(400).json({
-        message: "Invalid event code provided. Please select a valid event from the dropdown.",
-        receivedEvent: event,
-        validEvents: Object.keys(eventCodeMap)
-      });
-    }
+//     // Step 5: Validate event code and availability
+//     if (!event || !eventCodeMap.hasOwnProperty(event)) {
+//       return res.status(400).json({
+//         message: "Invalid event code provided. Please select a valid event from the dropdown.",
+//         receivedEvent: event,
+//         validEvents: Object.keys(eventCodeMap)
+//       });
+//     }
 
-    // Check event availability
-    const { availableEvents } = await getEventAvailabilityForSchool(schoolRegId);
-    if (!availableEvents.includes(event)) {
-      return res.status(400).json({
-        message: `You cannot register another team for event '${event}'.`,
-        availableEvents,
-      });
-    }
-
-
-    // Step 6: All validations passed → now generate team ID
-    const state = school.state;
-    if (!state) {
-      return res.status(400).json({
-        message: "School does not have a valid state. Cannot generate team ID."
-      });
-    }
-    const eventCode = event; // frontend already sends "ASB"
-    // 1. Get current sequence
-    const currentSequence = await getCurrentTeamSequence(eventCode, state);
-
-    // 2. Generate Team ID (sequence + 1, since we haven't incremented yet)
-    const teamRegId = generateTeamId(eventCode, currentSequence + 1, state);
-
-    const mergeInfo = {
-      school_reg_id: school.schoolRegId,
-      team_size: String(teamSize),
-      district: school.district,
-      event_name: eventCodeMap[event],
-      school_name: school.schoolName,
-      coordinator_name: school.coordinatorName,
-      team_id: teamRegId,
-      state: school.state,
-    };
+//     // Check event availability
+//     const { availableEvents } = await getEventAvailabilityForSchool(schoolRegId);
+//     if (!availableEvents.includes(event)) {
+//       return res.status(400).json({
+//         message: `You cannot register another team for event '${event}'.`,
+//         availableEvents,
+//       });
+//     }
 
 
-    await sendTeamConfirmationEmail({
-      recipients: [
-        {
-          email: school.schoolEmail,
-          name: school.schoolName,
-          mergeData: mergeInfo,
-        },
-        {
-          email: school.coordinatorEmail,
-          name: school.coordinatorName,
-          mergeData: mergeInfo, // same mergeData for both
-        },
-      ],
-      templateKey: "2518b.70f888d667329f26.k1.08bdb030-4a9f-11f0-bbb3-8e9a6c33ddc2.197785832b3",
-    });
+//     // Step 6: All validations passed → now generate team ID
+//     const state = school.state;
+//     if (!state) {
+//       return res.status(400).json({
+//         message: "School does not have a valid state. Cannot generate team ID."
+//       });
+//     }
+//     const eventCode = event; // frontend already sends "ASB"
+//     // 1. Get current sequence
+//     const currentSequence = await getCurrentTeamSequence(eventCode, state);
+
+//     // 2. Generate Team ID (sequence + 1, since we haven't incremented yet)
+//     const teamRegId = generateTeamId(eventCode, currentSequence + 1, state);
+
+//     const mergeInfo = {
+//       school_reg_id: school.schoolRegId,
+//       team_size: String(teamSize),
+//       district: school.district,
+//       event_name: eventCodeMap[event],
+//       school_name: school.schoolName,
+//       coordinator_name: school.coordinatorName,
+//       team_id: teamRegId,
+//       state: school.state,
+//     };
 
 
-    // Step 7: Save team
-    const newTeam = new Team({
-      schoolRegId,
-      teamSize,
-      event,
-      state,
-      members,
-      teamRegId
-    });
+//     await sendTeamConfirmationEmail({
+//       recipients: [
+//         {
+//           email: school.schoolEmail,
+//           name: school.schoolName,
+//           mergeData: mergeInfo,
+//         },
+//         {
+//           email: school.coordinatorEmail,
+//           name: school.coordinatorName,
+//           mergeData: mergeInfo, // same mergeData for both
+//         },
+//       ],
+//       templateKey: "2518b.70f888d667329f26.k1.08bdb030-4a9f-11f0-bbb3-8e9a6c33ddc2.197785832b3",
+//     });
 
-    await newTeam.save();
 
-    //  4. Increment the sequence
-    await incrementTeamSequence(eventCode, state);
+//     // Step 7: Save team
+//     const newTeam = new Team({
+//       schoolRegId,
+//       teamSize,
+//       event,
+//       state,
+//       members,
+//       teamRegId
+//     });
 
-    res.status(201).json({
-      success: true,
-      message: "Team registered successfully.",
-      teamRegId,
-    });
-  } catch (err) {
-    console.error("Error registering team:", err);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-      error: err.message
-    });
-  }
-};
+//     await newTeam.save();
+
+//     //  4. Increment the sequence
+//     await incrementTeamSequence(eventCode, state);
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Team registered successfully.",
+//       teamRegId,
+//     });
+//   } catch (err) {
+//     console.error("Error registering team:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal server error.",
+//       error: err.message
+//     });
+//   }
+// };
 
 export const getTeamDetails = async (req, res) => {
   try {
@@ -299,61 +303,264 @@ export const validateSchoolAndTeamCount = async (req, res) => {
 };
 
 // Batch register multiple teams for a school
+// export const registerTeamsBatch = async (req, res) => {
+//   try {
+//     const { schoolRegId, teams } = req.body; // teams: array of { teamSize, event, members, teamNumber }
+
+//     if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
+//       return res.status(400).json({ success: false, message: "schoolRegId and teams array are required." });
+//     }
+//     const school = await School.findOne({ schoolRegId });
+//     if (!school) {
+//       return res.status(404).json({ success: false, message: "School not found." });
+//     }
+//     const existingTeams = await Team.find({ schoolRegId });
+//     if (existingTeams.length + teams.length > 10) {
+//       return res.status(400).json({ success: false, message: `Cannot register more than 10 teams for this school. Already registered: ${existingTeams.length}` });
+//     }
+
+//     // Find used teamNumbers
+//     const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
+//     // Validate and prepare new teams
+//     const eventCodeMapKeys = Object.keys(eventCodeMap);
+//     const state = school.state;
+//     let currentSequences = {};
+//     let newTeams = [];
+
+//     for (const team of teams) {
+//       const { teamSize, event, members, teamNumber } = team;
+
+//       if (!event || !eventCodeMapKeys.includes(event)) {
+//         return res.status(400).json({ success: false, message: `Invalid event code: ${event}` });
+//       }
+//       if (!teamNumber || usedNumbers.has(teamNumber)) {
+//         return res.status(400).json({ success: false, message: `Invalid or duplicate team number: ${teamNumber}` });
+//       }
+//       usedNumbers.add(teamNumber);
+
+//       // Get current sequence for this event/state
+//       if (!currentSequences[event]) {
+//         currentSequences[event] = await getCurrentTeamSequence(event, state);
+//       }
+
+//       currentSequences[event] += 1;
+//       const teamRegId = generateTeamId(event, currentSequences[event], state);
+
+//       newTeams.push({
+//         schoolRegId,
+//         teamSize,
+//         event,
+//         state,
+//         members,
+//         teamRegId,
+//         teamNumber
+//       });
+//     }
+//     // Save all new teams
+//     const inserted = await Team.insertMany(newTeams);
+
+//     // STEP 2: Prepare merge data for ZeptoMail
+//     const teamTableMergeData = generateTeamTableMerge(inserted);
+
+//     const mergeData = {
+//       coordinator_name: school.coordinatorName,
+//       school_name: school.schoolName,
+//       school_reg_id: school.schoolRegId,
+//       state: school.state,
+//       district: school.district,
+//       team_table: inserted.map(t => ({
+//         team_id: t.teamRegId,
+//         event_name: eventCodeMap[t.event],
+//         team_size: String(t.teamSize)
+//       }))
+//     };
+
+
+//     console.log(mergeData)
+
+//     await sendTeamBatchConfirmationEmail({
+//       templateKey: "2518b.70f888d667329f26.k1.08bdb030-4a9f-11f0-bbb3-8e9a6c33ddc2.197785832b3",
+//       recipients: [
+//         {
+//           email: school.schoolEmail,
+//           name: school.schoolName,
+//           mergeData,
+//         },
+//         {
+//           email: school.coordinatorEmail,
+//           name: school.coordinatorName,
+//           mergeData,
+//         },
+//       ],
+//     });
+
+//     // Update sequence for each event
+//     for (const event of Object.keys(currentSequences)) {
+//       await incrementTeamSequence(event, state, currentSequences[event]);
+//     }
+//     return res.status(201).json({
+//       success: true,
+//       message: `${newTeams.length} teams registered successfully.`,
+//       teams: inserted.map(t => ({
+//         teamRegId: t.teamRegId,
+//         teamNumber: t.teamNumber
+//       }))
+//     });
+//   } catch (err) {
+//     console.error("Error batch registering teams:", err);
+//     return res.status(500).json({ success: false, message: "Internal server error.", error: err.message });
+//   }
+// };
+
 export const registerTeamsBatch = async (req, res) => {
-  try {
-    const { schoolRegId, teams } = req.body; // teams: array of { teamSize, event, members, teamNumber }
-    if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
-      return res.status(400).json({ success: false, message: "schoolRegId and teams array are required." });
+    try {
+        const { schoolRegId, teams } = req.body; // teams: array of { teamSize, event, members, teamNumber }
+
+        if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
+            return res.status(400).json({ success: false, message: "schoolRegId and teams array are required." });
+        }
+        const school = await School.findOne({ schoolRegId });
+        if (!school) {
+            return res.status(404).json({ success: false, message: "School not found." });
+        }
+        const existingTeams = await Team.find({ schoolRegId });
+        // Assuming max 10 teams per school logic
+        if (existingTeams.length + teams.length > 10) {
+            return res.status(400).json({ success: false, message: `Cannot register more than 10 teams for this school. Already registered: ${existingTeams.length}` });
+        }
+
+        const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
+        const eventCodeMapKeys = Object.keys(eventCodeMap);
+        const state = school.state;
+        let currentSequences = {};
+        let newTeams = [];
+
+        // --- Sync sequence with DB ---
+        const eventHighestSeq = {};
+        for (const team of teams) {
+            const { event } = team;
+            if (!eventHighestSeq[event]) {
+                const stateCode = getStateCode(state);
+                const regex = new RegExp(`^${stateCode}${event}`);
+                const lastTeam = await Team.find({ event, state, teamRegId: { $regex: regex } })
+                    .sort({ teamRegId: -1 })
+                    .limit(1);
+                if (lastTeam.length > 0) {
+                    const lastSeq = parseInt(lastTeam[0].teamRegId.slice(-3), 10);
+                    eventHighestSeq[event] = lastSeq;
+                } else {
+                    eventHighestSeq[event] = 0;
+                }
+            }
+        }
+        // --- END Sync sequence with DB ---
+
+        for (const team of teams) {
+            const { teamSize, event, members, teamNumber } = team;
+
+            if (!event || !eventCodeMapKeys.includes(event)) {
+                return res.status(400).json({ success: false, message: `Invalid event code: ${event}` });
+            }
+            if (!teamNumber || usedNumbers.has(teamNumber)) {
+                return res.status(400).json({ success: false, message: `Invalid or duplicate team number: ${teamNumber}` });
+            }
+            usedNumbers.add(teamNumber);
+
+            // Use the synced sequence
+            if (!currentSequences[event]) {
+                currentSequences[event] = eventHighestSeq[event];
+            }
+            currentSequences[event] += 1;
+            const teamRegId = generateTeamId(event, currentSequences[event], state);
+
+            newTeams.push({
+                schoolRegId,
+                teamSize,
+                event,
+                state,
+                members,
+                teamRegId,
+                teamNumber
+            });
+        }
+
+        // --- Prepare data for the email service ---
+        const emailDataForService = {
+            coordinator_name: school.coordinatorName,
+            school_name: school.schoolName,
+            school_reg_id: school.schoolRegId,
+            state: school.state,
+            district: school.district,
+            team_table: newTeams.map(t => ({
+                team_id: t.teamRegId,
+                event_name: eventCodeMap[t.event],
+                team_size: String(t.teamSize)
+            }))
+        };
+
+        // console.log("Email Data prepared for service:", emailDataForService);
+
+        // --- Send email first ---
+        try {
+            await sendTeamConfirmationEmailDirect({
+                recipients: [
+                    {
+                        email: school.schoolEmail,
+                        name: school.schoolName,
+                    },
+                    {
+                        email: school.coordinatorEmail,
+                        name: school.coordinatorName,
+                    },
+                ],
+                data: emailDataForService,
+            });
+        } catch (err) {
+            // If email fails, do NOT insert teams
+            return res.status(500).json({ success: false, message: "Failed to send confirmation email.", error: err.message });
+        }
+
+        // --- If email succeeds, insert teams ---
+        const inserted = await Team.insertMany(newTeams);
+
+        // --- PDF Generation Section ---
+        // This MUST happen after 'inserted' is populated
+        let pdfBase64 = null; // Initialize to null
+        let pdfFileName = null;
+        try {
+            const pdfBuffer = await generateBatchTeamPDF(school, inserted, eventCodeMap);
+            pdfBase64 = pdfBuffer.toString('base64');
+            pdfFileName = `Team_Registration_Details_${school.schoolRegId}.pdf`;
+            console.log("Batch Team Registration PDF generated successfully.");
+        } catch (pdfError) {
+            console.error("Error generating batch PDF:", pdfError);
+            // Don't halt the whole process if PDF generation fails, just log it.
+            // Frontend will get a response without the PDF.
+        }
+
+
+        // --- Update Counter to new highest value for each event ---
+        for (const event of Object.keys(currentSequences)) {
+            await Counter.findOneAndUpdate(
+                { type: "team", key: `${getStateCode(state)}${event}` },
+                { $set: { sequence_value: currentSequences[event] } },
+                { upsert: true }
+            );
+        }
+        // --- END Update Counter ---
+
+        return res.status(201).json({
+            success: true,
+            message: `${newTeams.length} teams registered successfully.`,
+            teams: inserted.map(t => ({
+                teamRegId: t.teamRegId,
+                teamNumber: t.teamNumber
+            })),
+            pdfBase64, // <-- add this
+            pdfFileName // <-- add this
+        });
+    } catch (err) {
+        console.error("Error batch registering teams:", err);
+        return res.status(500).json({ success: false, message: "Internal server error.", error: err.message });
     }
-    const school = await School.findOne({ schoolRegId });
-    if (!school) {
-      return res.status(404).json({ success: false, message: "School not found." });
-    }
-    const existingTeams = await Team.find({ schoolRegId });
-    if (existingTeams.length + teams.length > 10) {
-      return res.status(400).json({ success: false, message: `Cannot register more than 10 teams for this school. Already registered: ${existingTeams.length}` });
-    }
-    // Find used teamNumbers
-    const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
-    // Validate and prepare new teams
-    const eventCodeMapKeys = Object.keys(eventCodeMap);
-    const state = school.state;
-    let currentSequences = {};
-    let newTeams = [];
-    for (const team of teams) {
-      const { teamSize, event, members, teamNumber } = team;
-      if (!event || !eventCodeMapKeys.includes(event)) {
-        return res.status(400).json({ success: false, message: `Invalid event code: ${event}` });
-      }
-      if (!teamNumber || usedNumbers.has(teamNumber)) {
-        return res.status(400).json({ success: false, message: `Invalid or duplicate team number: ${teamNumber}` });
-      }
-      usedNumbers.add(teamNumber);
-      // Get current sequence for this event/state
-      if (!currentSequences[event]) {
-        currentSequences[event] = await getCurrentTeamSequence(event, state);
-      }
-      currentSequences[event] += 1;
-      const teamRegId = generateTeamId(event, currentSequences[event], state);
-      newTeams.push({
-        schoolRegId,
-        teamSize,
-        event,
-        state,
-        members,
-        teamRegId,
-        teamNumber
-      });
-    }
-    // Save all new teams
-    const inserted = await Team.insertMany(newTeams);
-    // Increment sequence for each event
-    for (const event of Object.keys(currentSequences)) {
-      await incrementTeamSequence(event, state, currentSequences[event]);
-    }
-    return res.status(201).json({ success: true, message: `${newTeams.length} teams registered successfully.`, teams: inserted.map(t => ({ teamRegId: t.teamRegId, teamNumber: t.teamNumber })) });
-  } catch (err) {
-    console.error("Error batch registering teams:", err);
-    return res.status(500).json({ success: false, message: "Internal server error.", error: err.message });
-  }
 };
