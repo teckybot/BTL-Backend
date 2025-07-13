@@ -54,7 +54,7 @@ export const verifyPayment = async (req, res) => {
       schoolId: schoolRegId,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
-      amount: 999,
+      amount: 9,
       verified: true,
       paymentDate: new Date(),
       emailSent: false,
