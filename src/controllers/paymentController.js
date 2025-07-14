@@ -27,7 +27,7 @@ export const createSchoolPaymentOrder = async (req, res) => {
 
     // Step 3: Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: Number(process.env.SCHOOL_REG_FEE || 1) * 100, // in paise
+      amount: Number(process.env.SCHOOL_REG_FEE || 999) * 100, // in paise
       currency: "INR",
       receipt: `school_reg_${Date.now()}`,
       notes: cleanedNotes,
