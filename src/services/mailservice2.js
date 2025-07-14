@@ -75,12 +75,11 @@ const baseEmailHtmlTemplate = `
         </table>
         <h3 style="color: #1a73e8; margin-top: 30px;">📌 Next Steps:</h3>
         <ul style="font-size: 15px; line-height: 1.6; padding-left: 20px; color: #333;">
-            <li>Use each <b>Team ID</b> for queries or event participation updates.</li>
             <li>Ensure all team members are aware of the rules and schedule.</li>
         </ul>
         <p style="margin-top: 25px; font-size: 15px;">Event poster is attached to this email.</p>
         <p style="font-size:15px">For questions, reply to this email or contact us at <a
-                href="mailto:support@bharatteckleague.com" style="color: #1a73e8;">support@bharatteckleague.com</a>.</p>
+                href="mailto:btl@teckybot.com" style="color: #1a73e8;">btl@teckybot.com</a>.</p>
         <p style="font-size:15px">We look forward to your enthusiastic participation!</p>
         <p style="font-size:15px">Warm regards,<br><b style="color: #1a73e8;">Team Bharat Teck League</b></p>
     </div>
