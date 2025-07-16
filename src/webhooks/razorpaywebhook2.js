@@ -94,6 +94,19 @@ const handleRazorpayWebhook = async (req, res) => {
       await sendSchoolBatchEmail({
         recipients: [{
           email: schoolEmail,
+          name: notes.principal_name,
+          mergeData: {
+            school_reg_id: schoolRegId,
+            district: notes.district,
+            school_name: notes.schoolName,
+            coordinator_name: notes.coordinatorName,
+            state: notes.state,
+            coordinator_number: notes.coordinatorNumber,
+            principal_name: notes.principalName,
+          },
+        },
+        {
+          email: notes.coordinatorEmail, // send to coordinator also
           name: notes.coordinatorName,
           mergeData: {
             school_reg_id: schoolRegId,
@@ -104,7 +117,8 @@ const handleRazorpayWebhook = async (req, res) => {
             coordinator_number: notes.coordinatorNumber,
             principal_name: notes.principalName,
           },
-        }],
+        },
+        ],
         templateKey: "2518b.70f888d667329f26.k1.2cf64680-3e18-11f0-b2ad-ae9c7e0b6a9f.197263fbae8",
       });
 
