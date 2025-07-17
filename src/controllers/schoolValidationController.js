@@ -14,8 +14,9 @@ export const validateForm = async (req, res) => {
 
 export const listSchools = async (req, res) => {
   try {
-    const { state, district, status, search } = req.query;
+    const { state, district, status, search, page = 1, limit = 10 } = req.query;
     const filter = {};
+
     if (state) filter.state = state;
     if (district) filter.district = district;
     if (status) filter.status = status;
@@ -28,12 +29,43 @@ export const listSchools = async (req, res) => {
         { schoolRegId: regex }
       ];
     }
-    const schools = await School.find(filter);
-    res.json(schools);
+
+    const skip = (page - 1) * limit;
+
+    const total = await School.countDocuments(filter);
+    const schools = await School.find(filter).skip(skip).limit(Number(limit));
+
+    res.json({ total, data: schools });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch schools', error: err.message });
   }
 };
+
+export const listAllSchools = async (req, res) => {
+  try {
+    const { state, district, status, search } = req.query;
+    const filter = {};
+
+    if (state) filter.state = state;
+    if (district) filter.district = district;
+    if (status) filter.status = status;
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      filter.$or = [
+        { schoolName: regex },
+        { schoolEmail: regex },
+        { coordinatorName: regex },
+        { schoolRegId: regex }
+      ];
+    }
+
+    const schools = await School.find(filter);
+    res.json({ data: schools });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch schools for export', error: err.message });
+  }
+};
+
 
 export const listSchoolStats = async (req, res) => {
   try {

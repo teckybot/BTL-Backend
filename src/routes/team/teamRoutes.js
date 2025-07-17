@@ -1,5 +1,5 @@
 import express from "express";
-import { getTeamDetails, listTeams, qualifyTeam, listTeamStats, validateSchoolAndTeamCount, registerTeamsBatch } from "../../controllers/team/teamController.js";
+import { getTeamDetails, listTeams,listAllTeams, qualifyTeam, listTeamStats, validateSchoolAndTeamCount, registerTeamsBatch } from "../../controllers/team/teamController.js";
 import { downloadTeamPDF } from "../../controllers/downloadPDF.js";
 
 const router = express.Router();
@@ -13,6 +13,8 @@ router.get("/details/:teamRegId", getTeamDetails);
 
 // List all teams (optional filter by schoolRegId via query)
 router.get("/list", listTeams);
+
+router.get("/list/all", listAllTeams);
 
 // Mark a team as qualified
 router.patch("/qualify/:teamRegId", qualifyTeam);

@@ -1,5 +1,5 @@
 import express from "express";
-import { validateForm, listSchools, listSchoolStats } from "../../controllers/schoolValidationController.js";
+import { validateForm, listSchools, listSchoolStats,listAllSchools } from "../../controllers/schoolValidationController.js";
 import { validateEmailDomain, checkDuplicateEmails } from "../../services/schoolValidationService.js";
 import {downloadSchoolPDF} from "../../controllers/downloadPDF.js"
 
@@ -67,6 +67,8 @@ router.post("/check-email", async (req, res) => {
 });
 
 router.get("/list", listSchools);
+router.get("/list/all", listAllSchools);
+
 router.get("/stats", listSchoolStats);
 
 export default router;

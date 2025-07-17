@@ -145,9 +145,52 @@ export const getTeamDetails = async (req, res) => {
   }
 };
 
+// export const listTeams = async (req, res) => {
+//   try {
+//     const { state, district, event, status, search, schoolRegId } = req.query;
+//     const filter = {};
+//     if (schoolRegId) filter.schoolRegId = schoolRegId;
+//     if (state) filter.state = state;
+//     if (event) filter.event = event;
+//     if (search) {
+//       const regex = new RegExp(search, 'i');
+//       filter.$or = [
+//         { event: regex },
+//         { schoolRegId: regex },
+//         { teamRegId: regex }
+//       ];
+//     }
+
+//     let teams = await Team.find(filter).lean();
+//     teams = await Promise.all(
+//       teams.map(async (team) => {
+//         const school = await School.findOne({ schoolRegId: team.schoolRegId });
+//         return {
+//           ...team,
+//           district: school ? school.district : 'N/A'
+//         };
+//       })
+//     );
+//     const videoSubs = await VideoSubmission.find({});
+//     const submittedSet = new Set(videoSubs.map(v => v.teamRegId));
+//     teams = teams.map(team => ({
+//       ...team,
+//       submitted: submittedSet.has(team.teamRegId)
+//     }));
+//     if (status === 'qualified') teams = teams.filter(team => team.isQualified);
+//     if (status === 'submitted') teams = teams.filter(team => team.submitted);
+//     if (status === 'paid') teams = teams.filter(team => team.qualifierPaid);
+//     if (district) teams = teams.filter(team => team.district === district);
+//     res.json(teams);
+//   } catch (err) {
+//     res.status(500).json({ message: 'Failed to fetch teams', error: err.message });
+//   }
+// };
+
 export const listTeams = async (req, res) => {
   try {
-    const { state, district, event, status, search, schoolRegId } = req.query;
+    const { state, district, event, status, search,schoolRegId, page = 1, limit = 10 } = req.query;
+
     const filter = {};
     if (schoolRegId) filter.schoolRegId = schoolRegId;
     if (state) filter.state = state;
@@ -160,35 +203,81 @@ export const listTeams = async (req, res) => {
         { teamRegId: regex }
       ];
     }
-    // Fetch teams
-    let teams = await Team.find(filter).lean();
-    // Add district from school
-    teams = await Promise.all(
-      teams.map(async (team) => {
-        const school = await School.findOne({ schoolRegId: team.schoolRegId });
-        return {
-          ...team,
-          district: school ? school.district : 'N/A'
-        };
-      })
-    );
-    // Fetch all video submissions
+
+    let teams = await Team.find(filter)
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .lean();
+
+    // Add district & submitted status
     const videoSubs = await VideoSubmission.find({});
     const submittedSet = new Set(videoSubs.map(v => v.teamRegId));
-    // Add submitted boolean
-    teams = teams.map(team => ({
-      ...team,
-      submitted: submittedSet.has(team.teamRegId)
+
+    teams = await Promise.all(teams.map(async (team) => {
+      const school = await School.findOne({ schoolRegId: team.schoolRegId });
+      const districtFromSchool = school ? school.district : 'N/A';
+
+      return {
+        ...team,
+        district: districtFromSchool,
+        submitted: submittedSet.has(team.teamRegId)
+      };
     }));
-    // Status filter
+
+    // Additional filters
+    if (district) teams = teams.filter(team => team.district === district);
     if (status === 'qualified') teams = teams.filter(team => team.isQualified);
     if (status === 'submitted') teams = teams.filter(team => team.submitted);
     if (status === 'paid') teams = teams.filter(team => team.qualifierPaid);
-    // District filter (after join)
-    if (district) teams = teams.filter(team => team.district === district);
-    res.json(teams);
+
+    const total = await Team.countDocuments(filter);
+    res.json({ total, data: teams });
+
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch teams', error: err.message });
+  }
+};
+
+export const listAllTeams = async (req, res) => {
+  try {
+    const { state, district, event, status, search } = req.query;
+
+    const filter = {};
+    if (state) filter.state = state;
+    if (event) filter.event = event;
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      filter.$or = [
+        { event: regex },
+        { schoolRegId: regex },
+        { teamRegId: regex }
+      ];
+    }
+
+    let teams = await Team.find(filter).lean();
+    const videoSubs = await VideoSubmission.find({});
+    const submittedSet = new Set(videoSubs.map(v => v.teamRegId));
+
+    teams = await Promise.all(teams.map(async (team) => {
+      const school = await School.findOne({ schoolRegId: team.schoolRegId });
+      const districtFromSchool = school ? school.district : 'N/A';
+
+      return {
+        ...team,
+        district: districtFromSchool,
+        submitted: submittedSet.has(team.teamRegId)
+      };
+    }));
+
+    if (district) teams = teams.filter(team => team.district === district);
+    if (status === 'qualified') teams = teams.filter(team => team.isQualified);
+    if (status === 'submitted') teams = teams.filter(team => team.submitted);
+    if (status === 'paid') teams = teams.filter(team => team.qualifierPaid);
+
+    res.json({ data: teams });
+
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch teams for export', error: err.message });
   }
 };
 
