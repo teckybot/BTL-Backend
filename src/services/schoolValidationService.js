@@ -1,7 +1,7 @@
 import { stateDistrictCodeMap } from "../constants/stateDistrictMap.js";
 import School from "../models/School.js";
 
-const validEmailDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@teckybot.com"];
+const validEmailDomains = ["@gmail.com", "@yahoo.com","@yahoo.in", "@outlook.com", "@teckybot.com"];
 
 const isValidEmail = (email) => {
   if (!email || typeof email !== "string") return false;

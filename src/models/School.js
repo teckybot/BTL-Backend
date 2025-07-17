@@ -20,9 +20,9 @@ const schoolSchema = new mongoose.Schema(
       lowercase: true,
       validate: {
     validator: function (v) {
-      return /^[a-zA-Z0-9._%+-]+@(gmail\.com|outlook\.com|yahoo\.com|teckybot\.com)$/.test(v);
+      return /^[a-zA-Z0-9._%+-]+@(gmail\.com|outlook\.com|yahoo\.com|teckybot\.com|yahoo\.in)$/.test(v);
     },
-    message: props => `${props.value} is not a supported email provider. Use @gmail.com, @outlook.com, or @yahoo.com or @teckybot.com`,
+    message: props => `${props.value} is not a supported email provider. Use @gmail.com, @outlook.com, or @yahoo.com or @yahoo.in`,
       },
     },
     coordinatorName: {
@@ -39,9 +39,9 @@ const schoolSchema = new mongoose.Schema(
       lowercase: true,
       validate: {
     validator: function (v) {
-      return /^[a-zA-Z0-9._%+-]+@(gmail\.com|outlook\.com|yahoo\.com|teckybot\.com)$/.test(v);
+      return /^[a-zA-Z0-9._%+-]+@(gmail\.com|outlook\.com|yahoo\.com|teckybot\.com|yahoo\.in)$/.test(v);
     },
-    message: props => `${props.value} is not a supported email provider. Use @gmail.com, @outlook.com, or @yahoo.com`,
+    message: props => `${props.value} is not a supported email provider. Use @gmail.com, @outlook.com, or @yahoo.com or @yahoo.in`,
       },
     },
     schoolAddress: {
