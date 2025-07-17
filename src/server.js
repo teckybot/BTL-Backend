@@ -13,6 +13,8 @@ import eventRoutes from "./routes/team/eventRoutes.js";
 
 import submissionRoutes from "./routes/videouploadRoutes/submissionRoutes.js";
 import qualifierRoutes from "./routes/qualifierRoutes.js";
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 
@@ -77,6 +79,13 @@ app.use(globalLimiter);
 
 // Apply strict limiter ONLY on /api/payments/create-order POST route
 app.use("/api/payments/create-order", strictLimiter);
+
+// Serve sitemap.xml
+app.get('/sitemap.xml', (req, res) => {
+  const sitemapPath = path.join(process.cwd(), 'src', 'public', 'sitemap.xml');
+  res.setHeader('Content-Type', 'application/xml');
+  fs.createReadStream(sitemapPath).pipe(res);
+});
 
 // Routes
 app.use("/api/school", schoolRoutes);
