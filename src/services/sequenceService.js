@@ -3,6 +3,26 @@ import Counter from "../models/Counter.js";
 import { getStateCode } from "../utils/stateCodeUtils.js";
 
 
+// === AI WORKSHOP SEQUENCING ===
+// For AI Workshop ID (e.g., AIW0001)
+export async function getNextAIWorkshopSequence() {
+  const counter = await Counter.findOneAndUpdate(
+    { type: "aiWorkshop", key: "AIW" },
+    { $inc: { sequence_value: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.sequence_value;
+}
+
+export async function incrementAIWorkshopSequence() {
+  const counter = await Counter.findOneAndUpdate(
+    { type: "aiWorkshop", key: "AIW" },
+    { $inc: { sequence_value: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.sequence_value;
+}
+
 // === SCHOOL SEQUENCING ===
 // For School ID (e.g., APVSP001)
 export async function getNextSchoolSequence(stateCode, districtCode) {
@@ -63,5 +83,11 @@ export const incrementTeamSequence = async (eventCode, stateName) => {
 
   return counter.sequence_value;
 };
+
+// Get current AI Workshop sequence WITHOUT incrementing
+export async function getCurrentAIWorkshopSequence() {
+  const counter = await Counter.findOne({ type: "aiWorkshop", key: "AIW" });
+  return counter ? counter.sequence_value : 0;
+}
 
 

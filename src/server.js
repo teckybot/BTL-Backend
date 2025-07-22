@@ -14,6 +14,8 @@ import eventRoutes from "./routes/team/eventRoutes.js";
 import submissionRoutes from "./routes/videouploadRoutes/submissionRoutes.js";
 import qualifierRoutes from "./routes/qualifierRoutes.js";
 
+import aiWorkshopRoutes from "./routes/aiWorkshopRoutes.js";
+
 
 dotenv.config();
 
@@ -91,6 +93,9 @@ app.use("/api/events", eventRoutes);
 //File submission Routes
 app.use("/api/submission", submissionRoutes);
 app.use("/api/qualifier", qualifierRoutes);
+
+//AI Workshop Routes
+app.use("/api/ai-workshop", aiWorkshopRoutes);
 
 // Log every incoming request: method and URL
 app.use((req, res, next) => {
