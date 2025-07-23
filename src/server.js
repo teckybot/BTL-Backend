@@ -26,7 +26,7 @@ const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
-    : ['http://localhost:5173', 'http://127.0.0.1:5173','https://btlregistrationsystem.vercel.app','https://www.bharatteckleague.com'],
+    : ['http://localhost:5173', 'http://127.0.0.1:5173','https://btlregistrationsystem.vercel.app','https://bharatteckleague.vercel.app','https://www.bharatteckleague.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
