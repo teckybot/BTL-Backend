@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import schoolRoutes from "./routes/school/schoolRoutes.js";
 import paymentRoutes from "./routes/payment/paymentRoutes.js";
 import razorpayWebhookHandler from "./webhooks/razorpaywebhook2.js";
+import handleTeamWebhook from './webhooks/teamWebhookHandler.js';
 
 import teamRoutes from "./routes/team/teamRoutes.js";
 import checkpointRoutes from "./routes/team/checkpointRoutes.js";
@@ -52,6 +53,7 @@ await enableDevLogging();
 
 // Middleware for webhook route raw body parsing
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), razorpayWebhookHandler);
+app.post("/api/team/webhook", express.raw({ type: "application/json" }), handleTeamWebhook);
 
 // Increase JSON payload limit
 app.use(express.json({ limit: '10mb' }));

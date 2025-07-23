@@ -1,5 +1,6 @@
 import express from "express";
 import { getTeamDetails, listTeams,listAllTeams, qualifyTeam, listTeamStats, validateSchoolAndTeamCount, registerTeamsBatch } from "../../controllers/team/teamController.js";
+import { createTeamPaymentOrder, verifyTeamPaymentAndRegister } from "../../controllers/team/teamPaymentController.js";
 import { downloadTeamPDF } from "../../controllers/downloadPDF.js";
 
 const router = express.Router();
@@ -27,5 +28,9 @@ router.post("/validateSchool", validateSchoolAndTeamCount);
 
 // Batch registration endpoint (used by frontend)
 router.post("/registerBatch", registerTeamsBatch);
+
+// Team Payment Endpoints (independent from school payment)
+router.post("/payment/create-order", createTeamPaymentOrder);
+router.post("/payment/verify", verifyTeamPaymentAndRegister);
 
 export default router;

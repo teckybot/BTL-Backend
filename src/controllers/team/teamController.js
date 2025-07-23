@@ -11,6 +11,7 @@ import { sendTeamConfirmationEmailDirect } from '../../services/mailservice2.js'
 import { getStateCode } from "../../utils/stateCodeUtils.js";
 import Counter from "../../models/Counter.js";
 import {generateBatchTeamPDF} from '../../services/pdfService.js';
+import {registerTeamsBatchService} from '../../services/teamRegistrationService.js'
 
 // export const registerTeam = async (req, res) => {
 //   try {
@@ -391,6 +392,8 @@ export const validateSchoolAndTeamCount = async (req, res) => {
   }
 };
 
+
+//Approach 1: old approach batch register teams manually
 // Batch register multiple teams for a school
 // export const registerTeamsBatch = async (req, res) => {
 //   try {
@@ -501,155 +504,185 @@ export const validateSchoolAndTeamCount = async (req, res) => {
 //   }
 // };
 
+//Approach 2: old approach batch register teams manually
+// export const registerTeamsBatch = async (req, res) => {
+//     try {
+//         const { schoolRegId, teams } = req.body; // teams: array of { teamSize, event, members, teamNumber }
+
+//         if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
+//             return res.status(400).json({ success: false, message: "schoolRegId and teams array are required." });
+//         }
+//         const school = await School.findOne({ schoolRegId });
+//         if (!school) {
+//             return res.status(404).json({ success: false, message: "School not found." });
+//         }
+//         const existingTeams = await Team.find({ schoolRegId });
+//         // Assuming max 10 teams per school logic
+//         if (existingTeams.length + teams.length > 10) {
+//             return res.status(400).json({ success: false, message: `Cannot register more than 10 teams for this school. Already registered: ${existingTeams.length}` });
+//         }
+
+//         const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
+//         const eventCodeMapKeys = Object.keys(eventCodeMap);
+//         const state = school.state;
+//         let currentSequences = {};
+//         let newTeams = [];
+
+//         // --- Sync sequence with DB ---
+//         const eventHighestSeq = {};
+//         for (const team of teams) {
+//             const { event } = team;
+//             if (!eventHighestSeq[event]) {
+//                 const stateCode = getStateCode(state);
+//                 const regex = new RegExp(`^${stateCode}${event}`);
+//                 const lastTeam = await Team.find({ event, state, teamRegId: { $regex: regex } })
+//                     .sort({ teamRegId: -1 })
+//                     .limit(1);
+//                 if (lastTeam.length > 0) {
+//                     const lastSeq = parseInt(lastTeam[0].teamRegId.slice(-3), 10);
+//                     eventHighestSeq[event] = lastSeq;
+//                 } else {
+//                     eventHighestSeq[event] = 0;
+//                 }
+//             }
+//         }
+//         // --- END Sync sequence with DB ---
+
+//         for (const team of teams) {
+//             const { teamSize, event, members, teamNumber } = team;
+
+//             if (!event || !eventCodeMapKeys.includes(event)) {
+//                 return res.status(400).json({ success: false, message: `Invalid event code: ${event}` });
+//             }
+//             if (!teamNumber || usedNumbers.has(teamNumber)) {
+//                 return res.status(400).json({ success: false, message: `Invalid or duplicate team number: ${teamNumber}` });
+//             }
+//             usedNumbers.add(teamNumber);
+
+//             // Use the synced sequence
+//             if (!currentSequences[event]) {
+//                 currentSequences[event] = eventHighestSeq[event];
+//             }
+//             currentSequences[event] += 1;
+//             const teamRegId = generateTeamId(event, currentSequences[event], state);
+
+//             newTeams.push({
+//                 schoolRegId,
+//                 teamSize,
+//                 event,
+//                 state,
+//                 members,
+//                 teamRegId,
+//                 teamNumber
+//             });
+//         }
+
+//         // --- Prepare data for the email service ---
+//         const emailDataForService = {
+//             coordinator_name: school.coordinatorName,
+//             school_name: school.schoolName,
+//             school_reg_id: school.schoolRegId,
+//             state: school.state,
+//             district: school.district,
+//             team_table: newTeams.map(t => ({
+//                 team_id: t.teamRegId,
+//                 event_name: eventCodeMap[t.event],
+//                 team_size: String(t.teamSize)
+//             }))
+//         };
+
+//         // console.log("Email Data prepared for service:", emailDataForService);
+
+//         // --- Send email first ---
+//         try {
+//             await sendTeamConfirmationEmailDirect({
+//                 recipients: [
+//                     {
+//                         email: school.schoolEmail,
+//                         name: school.schoolName,
+//                     },
+//                     {
+//                         email: school.coordinatorEmail,
+//                         name: school.coordinatorName,
+//                     },
+//                 ],
+//                 data: emailDataForService,
+//             });
+//         } catch (err) {
+//             // If email fails, do NOT insert teams
+//             return res.status(500).json({ success: false, message: "Failed to send confirmation email.", error: err.message });
+//         }
+
+//         // --- If email succeeds, insert teams ---
+//         const inserted = await Team.insertMany(newTeams);
+
+//         // --- PDF Generation Section ---
+//         // This MUST happen after 'inserted' is populated
+//         let pdfBase64 = null; // Initialize to null
+//         let pdfFileName = null;
+//         try {
+//             const pdfBuffer = await generateBatchTeamPDF(school, inserted, eventCodeMap);
+//             pdfBase64 = pdfBuffer.toString('base64');
+//             pdfFileName = `Team_Registration_Details_${school.schoolRegId}.pdf`;
+//             console.log("Batch Team Registration PDF generated successfully.");
+//         } catch (pdfError) {
+//             console.error("Error generating batch PDF:", pdfError);
+//             // Don't halt the whole process if PDF generation fails, just log it.
+//             // Frontend will get a response without the PDF.
+//         }
+
+
+//         // --- Update Counter to new highest value for each event ---
+//         for (const event of Object.keys(currentSequences)) {
+//             await Counter.findOneAndUpdate(
+//                 { type: "team", key: `${getStateCode(state)}${event}` },
+//                 { $set: { sequence_value: currentSequences[event] } },
+//                 { upsert: true }
+//             );
+//         }
+//         // --- END Update Counter ---
+
+//         return res.status(201).json({
+//             success: true,
+//             message: `${newTeams.length} teams registered successfully.`,
+//             teams: inserted.map(t => ({
+//                 teamRegId: t.teamRegId,
+//                 teamNumber: t.teamNumber
+//             })),
+//             pdfBase64, // <-- add this
+//             pdfFileName // <-- add this
+//         });
+//     } catch (err) {
+//         console.error("Error batch registering teams:", err);
+//         return res.status(500).json({ success: false, message: "Internal server error.", error: err.message });
+//     }
+// };
+
+//New approach: uses service
+
+
 export const registerTeamsBatch = async (req, res) => {
-    try {
-        const { schoolRegId, teams } = req.body; // teams: array of { teamSize, event, members, teamNumber }
+  try {
+    const { schoolRegId, teams } = req.body;
 
-        if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
-            return res.status(400).json({ success: false, message: "schoolRegId and teams array are required." });
-        }
-        const school = await School.findOne({ schoolRegId });
-        if (!school) {
-            return res.status(404).json({ success: false, message: "School not found." });
-        }
-        const existingTeams = await Team.find({ schoolRegId });
-        // Assuming max 10 teams per school logic
-        if (existingTeams.length + teams.length > 10) {
-            return res.status(400).json({ success: false, message: `Cannot register more than 10 teams for this school. Already registered: ${existingTeams.length}` });
-        }
+    const result = await registerTeamsBatchService(schoolRegId, teams);
 
-        const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
-        const eventCodeMapKeys = Object.keys(eventCodeMap);
-        const state = school.state;
-        let currentSequences = {};
-        let newTeams = [];
+    return res.status(201).json({
+      success: true,
+      message: `${result.teams.length} teams registered successfully.`,
+      teams: result.teams.map(t => ({
+        teamRegId: t.teamRegId,
+        teamNumber: t.teamNumber
+      })),
+      pdfBase64: result.pdfBase64,
+      pdfFileName: result.pdfFileName
+    });
 
-        // --- Sync sequence with DB ---
-        const eventHighestSeq = {};
-        for (const team of teams) {
-            const { event } = team;
-            if (!eventHighestSeq[event]) {
-                const stateCode = getStateCode(state);
-                const regex = new RegExp(`^${stateCode}${event}`);
-                const lastTeam = await Team.find({ event, state, teamRegId: { $regex: regex } })
-                    .sort({ teamRegId: -1 })
-                    .limit(1);
-                if (lastTeam.length > 0) {
-                    const lastSeq = parseInt(lastTeam[0].teamRegId.slice(-3), 10);
-                    eventHighestSeq[event] = lastSeq;
-                } else {
-                    eventHighestSeq[event] = 0;
-                }
-            }
-        }
-        // --- END Sync sequence with DB ---
-
-        for (const team of teams) {
-            const { teamSize, event, members, teamNumber } = team;
-
-            if (!event || !eventCodeMapKeys.includes(event)) {
-                return res.status(400).json({ success: false, message: `Invalid event code: ${event}` });
-            }
-            if (!teamNumber || usedNumbers.has(teamNumber)) {
-                return res.status(400).json({ success: false, message: `Invalid or duplicate team number: ${teamNumber}` });
-            }
-            usedNumbers.add(teamNumber);
-
-            // Use the synced sequence
-            if (!currentSequences[event]) {
-                currentSequences[event] = eventHighestSeq[event];
-            }
-            currentSequences[event] += 1;
-            const teamRegId = generateTeamId(event, currentSequences[event], state);
-
-            newTeams.push({
-                schoolRegId,
-                teamSize,
-                event,
-                state,
-                members,
-                teamRegId,
-                teamNumber
-            });
-        }
-
-        // --- Prepare data for the email service ---
-        const emailDataForService = {
-            coordinator_name: school.coordinatorName,
-            school_name: school.schoolName,
-            school_reg_id: school.schoolRegId,
-            state: school.state,
-            district: school.district,
-            team_table: newTeams.map(t => ({
-                team_id: t.teamRegId,
-                event_name: eventCodeMap[t.event],
-                team_size: String(t.teamSize)
-            }))
-        };
-
-        // console.log("Email Data prepared for service:", emailDataForService);
-
-        // --- Send email first ---
-        try {
-            await sendTeamConfirmationEmailDirect({
-                recipients: [
-                    {
-                        email: school.schoolEmail,
-                        name: school.schoolName,
-                    },
-                    {
-                        email: school.coordinatorEmail,
-                        name: school.coordinatorName,
-                    },
-                ],
-                data: emailDataForService,
-            });
-        } catch (err) {
-            // If email fails, do NOT insert teams
-            return res.status(500).json({ success: false, message: "Failed to send confirmation email.", error: err.message });
-        }
-
-        // --- If email succeeds, insert teams ---
-        const inserted = await Team.insertMany(newTeams);
-
-        // --- PDF Generation Section ---
-        // This MUST happen after 'inserted' is populated
-        let pdfBase64 = null; // Initialize to null
-        let pdfFileName = null;
-        try {
-            const pdfBuffer = await generateBatchTeamPDF(school, inserted, eventCodeMap);
-            pdfBase64 = pdfBuffer.toString('base64');
-            pdfFileName = `Team_Registration_Details_${school.schoolRegId}.pdf`;
-            console.log("Batch Team Registration PDF generated successfully.");
-        } catch (pdfError) {
-            console.error("Error generating batch PDF:", pdfError);
-            // Don't halt the whole process if PDF generation fails, just log it.
-            // Frontend will get a response without the PDF.
-        }
-
-
-        // --- Update Counter to new highest value for each event ---
-        for (const event of Object.keys(currentSequences)) {
-            await Counter.findOneAndUpdate(
-                { type: "team", key: `${getStateCode(state)}${event}` },
-                { $set: { sequence_value: currentSequences[event] } },
-                { upsert: true }
-            );
-        }
-        // --- END Update Counter ---
-
-        return res.status(201).json({
-            success: true,
-            message: `${newTeams.length} teams registered successfully.`,
-            teams: inserted.map(t => ({
-                teamRegId: t.teamRegId,
-                teamNumber: t.teamNumber
-            })),
-            pdfBase64, // <-- add this
-            pdfFileName // <-- add this
-        });
-    } catch (err) {
-        console.error("Error batch registering teams:", err);
-        return res.status(500).json({ success: false, message: "Internal server error.", error: err.message });
-    }
+  } catch (err) {
+    console.error("Error registering teams (controller):", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Failed to register teams"
+    });
+  }
 };
