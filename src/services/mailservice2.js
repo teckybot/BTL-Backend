@@ -36,7 +36,7 @@ const baseEmailHtmlTemplate = `
 <head></head>
 <body>
     <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 8px 20px rgba(0, 123, 255, 0.1); border-left: 6px solid #1a73e8;">
-        <h2 style="color: #1a73e8; text-align: center;">Teams Registered Successfully -  Bharat Tech League 2025<br></h2>
+        <h2 style="color: #1a73e8; text-align: center;">Teams Registered Successfully -  Bharat Teck League 2025<br></h2>
         <p style="font-size:16px">Dear <b>{coordinator_name}</b>,</p>
         <p style="font-size:16px">We are excited to confirm that the following teams have been successfully registered
             for the <b>Bharat Teck League 2025</b>.</p>
