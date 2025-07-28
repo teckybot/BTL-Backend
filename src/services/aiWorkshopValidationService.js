@@ -1,11 +1,10 @@
 import AIWorkshopRegistration from "../models/AIWorkshopRegistration.js";
 
-const validEmailDomains = ["@gmail.com", "@yahoo.com", "@yahoo.in", "@outlook.com", "@teckybot.com"];
-
 const isValidEmail = (email) => {
   if (!email || typeof email !== "string") return false;
   email = email.trim().toLowerCase();
-  return validEmailDomains.some((domain) => email.endsWith(domain));
+  // Very simple format validation (optional)
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
 const validatePhoneNumber = (phone) => {
@@ -28,15 +27,9 @@ const isAllCaps = (text) => {
   return text === text.toUpperCase();
 };
 
-// Check for duplicate email
+// No longer throwing errors for duplicates
 export const checkDuplicateEmail = async (email) => {
-  const existing = await AIWorkshopRegistration.findOne({ email: email.toLowerCase() });
-  if (existing) {
-    throw {
-      message: "Email already registered for AI Workshop",
-      emailDuplicate: true,
-    };
-  }
+  return true; // Always allow duplicates now
 };
 
 // Full form validator for /validate
@@ -46,8 +39,8 @@ export const validateAIWorkshopFormData = async (data) => {
 
   // Check registration limit first
   const totalRegistrations = await AIWorkshopRegistration.countDocuments();
-  if (totalRegistrations >= 100) {
-    throw { message: "Maximum registrations (100) reached for AI Workshop", errors: {} };
+  if (totalRegistrations >= 300) {
+    throw { message: "Maximum registrations (300) reached for AI Workshop", errors: {} };
   }
 
   // Name
@@ -61,11 +54,11 @@ export const validateAIWorkshopFormData = async (data) => {
   const phoneError = validatePhoneNumber(contact);
   if (phoneError) errors.contact = phoneError;
 
-  // Email
+  // Email validation (only format, no domain or duplicates)
   if (!email || !email.trim()) {
     errors.email = "Email is required";
   } else if (!isValidEmail(email)) {
-    errors.email = "Invalid email domain";
+    errors.email = "Invalid email format";
   }
 
   // School
@@ -73,12 +66,6 @@ export const validateAIWorkshopFormData = async (data) => {
     errors.school = "School name is required";
   } else if (!isAllCaps(school)) {
     errors.school = "School name must be in ALL CAPS";
-  }
-
-  // Check for duplicates in DB
-  if (email && email.trim()) {
-    const existing = await AIWorkshopRegistration.findOne({ email: email.toLowerCase() });
-    if (existing) errors.email = "Email already registered for AI Workshop";
   }
 
   if (Object.keys(errors).length > 0) {

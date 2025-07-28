@@ -22,11 +22,12 @@ const aiWorkshopRegistrationSchema = new mongoose.Schema(
       type: String,
       required: true,
       lowercase: true,
+      // Removed domain restriction so any valid email works
       validate: {
         validator: function (v) {
-          return /^[a-zA-Z0-9._%+-]+@(gmail\.com|outlook\.com|yahoo\.com|teckybot\.com|yahoo\.in)$/.test(v);
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);  // basic email validation
         },
-        message: props => `${props.value} is not a supported email provider. Use @gmail.com, @outlook.com, or @yahoo.com or @yahoo.in`,
+        message: props => `${props.value} is not a valid email address.`,
       },
     },
     school: {

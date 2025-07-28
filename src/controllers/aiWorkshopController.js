@@ -17,21 +17,21 @@ export const validateAIWorkshopForm = async (req, res) => {
   }
 };
 
-export const checkAIWorkshopEmail = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ message: "Email is required" });
-    }
-    const existing = await AIWorkshopRegistration.findOne({ email: email.toLowerCase() });
-    if (existing) {
-      return res.status(400).json({ message: "Email already registered for AI Workshop", emailDuplicate: true });
-    }
-    res.status(200).json({ message: "Email is available" });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
+// export const checkAIWorkshopEmail = async (req, res) => {
+//   try {
+//     const { email } = req.body;
+//     if (!email) {
+//       return res.status(400).json({ message: "Email is required" });
+//     }
+//     const existing = await AIWorkshopRegistration.findOne({ email: email.toLowerCase() });
+//     if (existing) {
+//       return res.status(400).json({ message: "Email already registered for AI Workshop", emailDuplicate: true });
+//     }
+//     res.status(200).json({ message: "Email is available" });
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// };
 
 export const registerAIWorkshop = async (req, res) => {
   try {

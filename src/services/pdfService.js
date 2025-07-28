@@ -509,22 +509,25 @@ export const generateAIWorkshopPDF = (registrationData) => {
       doc.font("Helvetica-Bold").fillColor("#444").text("Email:", leftX, y);
       doc.font("Helvetica").fillColor("#222").text(registrationData.email, leftX + labelOffsetLeft, y, { width: colWidth - 90 });
       y += lineHeight + rowSpacing;
+      doc.font("Helvetica-Bold").fillColor("#444").text("Contact:", leftX, y);
+      doc.font("Helvetica").fillColor("#222").text(registrationData.contact, leftX + labelOffsetLeft, y, { width: colWidth - 90 });
+      y += lineHeight + rowSpacing;
+      doc.font("Helvetica-Bold").fillColor("#444").text("School:", leftX, y);
+      doc.font("Helvetica").fillColor("#222").text(registrationData.school, leftX + labelOffsetLeft, y, { width: colWidth - 80 });
+      y += lineHeight + rowSpacing;
 
       // Right column
       y = detailsY + 30;
-      doc.font("Helvetica-Bold").fillColor("#444").text("Contact:", rightX, y);
-      doc.font("Helvetica").fillColor("#222").text(registrationData.contact, rightX + labelOffsetRight, y, { width: colWidth - 80 });
-      y += lineHeight + rowSpacing;
-      doc.font("Helvetica-Bold").fillColor("#444").text("School:", rightX, y);
-      doc.font("Helvetica").fillColor("#222").text(registrationData.school, rightX + labelOffsetRight, y, { width: colWidth - 80 });
-      y += lineHeight + rowSpacing;
-
+      
       // Workshop Details
       doc.font("Helvetica-Bold").fillColor("#444").text("Event:", rightX, y);
       doc.font("Helvetica").fillColor("#222").text("AI Workshop for Teachers", rightX + labelOffsetRight, y, { width: colWidth - 80 });
       y += lineHeight + rowSpacing;
       doc.font("Helvetica-Bold").fillColor("#444").text("Date:", rightX, y);
       doc.font("Helvetica").fillColor("#222").text("August 2nd, 2025", rightX + labelOffsetRight, y, { width: colWidth - 80 });
+      y += lineHeight + rowSpacing;
+      doc.font("Helvetica-Bold").fillColor("#444").text("Timings:", rightX, y);
+      doc.font("Helvetica").fillColor("#222").text("10:45 AM - 1:00 PM", rightX + labelOffsetRight, y, { width: colWidth - 80 });
       y += lineHeight + rowSpacing;
       doc.font("Helvetica-Bold").fillColor("#444").text("Venue:", rightX, y);
       doc.font("Helvetica").fillColor("#222").text("Bullayya College", rightX + labelOffsetRight, y, { width: colWidth - 80 });

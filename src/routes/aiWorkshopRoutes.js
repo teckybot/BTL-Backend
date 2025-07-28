@@ -1,7 +1,6 @@
 import express from "express";
 import {
   validateAIWorkshopForm,
-  checkAIWorkshopEmail,
   registerAIWorkshop,
   getAllAIWorkshopRegistrations,
   deleteAIWorkshopRegistration,
@@ -13,7 +12,6 @@ import AIWorkshopRegistration from "../models/AIWorkshopRegistration.js";
 const router = express.Router();
 
 router.post("/validate", validateAIWorkshopForm);
-router.post("/check-email", checkAIWorkshopEmail);
 router.post("/register", registerAIWorkshop);
 router.get("/download-pdf/:registrationId", downloadAIWorkshopPDF);
 
