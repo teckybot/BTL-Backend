@@ -1,39 +1,19 @@
 import express from "express";
-import { validateForm, listSchools, listSchoolStats,listAllSchools } from "../../controllers/schoolValidationController.js";
+import School from "../../models/School.js";
+import { validateForm, listSchools, listSchoolStats, listAllSchools } from "../../controllers/schoolValidationController.js";
 import { validateEmailDomain, checkDuplicateEmails } from "../../services/schoolValidationService.js";
-import {downloadSchoolPDF} from "../../controllers/downloadPDF.js"
+import { downloadSchoolPDF } from "../../controllers/downloadPDF.js";
+import { registerSchool } from "../../controllers/schoolController.js";
 
 const router = express.Router();
 
-// Route for full form validation (before payment)
+// Step 1: Full form validation (client calls before submitting)
 router.post("/validate", validateForm);
 
-//pdf download
-router.get("/pdf/:schoolRegId", downloadSchoolPDF);
+// Step 2: School registration (creates school + sends email + returns schoolRegId)
+router.post("/register", registerSchool);
 
-// Route to check email availability and validity
-// router.post("/check-email", async (req, res) => {
-//   try {
-//     const { schoolEmail, coordinatorEmail } = req.body;
-
-//     // Validate domains
-//     if (schoolEmail) validateEmailDomain(schoolEmail);
-//     if (coordinatorEmail) validateEmailDomain(coordinatorEmail);
-
-//     // Check if same
-//     if (schoolEmail === coordinatorEmail) {
-//       return res.status(400).json({ message: "School and Coordinator email cannot be the same" });
-//     }
-
-//     // Check duplicates
-//     await checkDuplicateEmails(schoolEmail, coordinatorEmail);
-
-//     return res.status(200).json({ message: "Emails are available" });
-//   } catch (error) {
-//     return res.status(400).json({ message: error.message });
-//   }
-// });
-
+// Step 3: Email availability check (optional pre-check)
 router.post("/check-email", async (req, res) => {
   try {
     const { schoolEmail, coordinatorEmail } = req.body;
@@ -66,9 +46,37 @@ router.post("/check-email", async (req, res) => {
   }
 });
 
+// Step 4: Download school registration PDF
+router.get("/pdf/:schoolRegId", downloadSchoolPDF);
+
+// Step 5: Admin listing & stats
 router.get("/list", listSchools);
 router.get("/list/all", listAllSchools);
-
 router.get("/stats", listSchoolStats);
+
+// Fetch school details by regId
+router.get("/:schoolRegId", async (req, res) => {
+  try {
+    const { schoolRegId } = req.params;
+
+    if (!schoolRegId) {
+      return res.status(400).json({ success: false, message: "schoolRegId is required." });
+    }
+
+    const school = await School.findOne({ schoolRegId }).select(
+      "schoolName schoolEmail coordinatorName coordinatorEmail coordinatorNumber state district"
+    );
+
+
+    if (!school) {
+      return res.status(404).json({ success: false, message: "School not found." });
+    }
+
+    res.status(200).json({ success: true, school });
+  } catch (err) {
+    console.error("Failed to fetch school:", err);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
 
 export default router;

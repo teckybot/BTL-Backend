@@ -4,8 +4,6 @@ import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import schoolRoutes from "./routes/school/schoolRoutes.js";
-import paymentRoutes from "./routes/payment/paymentRoutes.js";
-import razorpayWebhookHandler from "./webhooks/razorpaywebhook2.js";
 import handleTeamWebhook from './webhooks/teamWebhookHandler.js';
 
 import teamRoutes from "./routes/team/teamRoutes.js";
@@ -21,7 +19,7 @@ import aiWorkshopRoutes from "./routes/aiWorkshopRoutes.js";
 dotenv.config();
 
 const app = express();
-
+app.set('trust proxy', 1);
 // Configure CORS with specific options
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
@@ -52,7 +50,6 @@ const enableDevLogging = async () => {
 await enableDevLogging();
 
 // Middleware for webhook route raw body parsing
-app.post("/api/payments/webhook", express.raw({ type: "application/json" }), razorpayWebhookHandler);
 app.post("/api/team/webhook", express.raw({ type: "application/json" }), handleTeamWebhook);
 
 // Increase JSON payload limit
@@ -81,11 +78,10 @@ const strictLimiter = rateLimit({
 app.use(globalLimiter);
 
 // Apply strict limiter ONLY on /api/payments/create-order POST route
-app.use("/api/payments/create-order", strictLimiter);
+// app.use("/api/payments/create-order", strictLimiter); 
 
 // Routes
 app.use("/api/school", schoolRoutes);
-app.use("/api/payments", paymentRoutes);
 
 //Team Routes
 app.use("/api/team", teamRoutes);

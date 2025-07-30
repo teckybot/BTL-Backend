@@ -12,6 +12,7 @@ import { getStateCode } from "../../utils/stateCodeUtils.js";
 import Counter from "../../models/Counter.js";
 import {generateBatchTeamPDF} from '../../services/pdfService.js';
 import {registerTeamsBatchService} from '../../services/teamRegistrationService.js'
+import PendingTeamRegistration from "../../models/PendingTeamRegistration.js";
 
 // export const registerTeam = async (req, res) => {
 //   try {
@@ -686,3 +687,34 @@ export const registerTeamsBatch = async (req, res) => {
     });
   }
 };
+
+
+//to track pending webhook failed registrations but payment is done.
+export const savePendingTeamRegistration = async (req, res) => {
+  try {
+    const { schoolRegId, teams } = req.body;
+
+    if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
+      return res.status(400).json({ message: "Invalid data." });
+    }
+
+    let pending = await PendingTeamRegistration.findOne({ schoolRegId });
+
+    if (pending) {
+      // Append new teams (avoid duplicates if needed)
+      pending.teams = [...pending.teams, ...teams];
+      await pending.save();
+      return res.status(200).json({ message: "Teams appended to pending registration." });
+    } else {
+      await new PendingTeamRegistration({
+        schoolRegId,
+        teams,
+      }).save();
+      return res.status(201).json({ message: "Pending registration logged." });
+    }
+  } catch (err) {
+    console.error("Pending save error:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+

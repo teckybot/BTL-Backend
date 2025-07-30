@@ -14,39 +14,59 @@ const razorpay = new Razorpay({
 
 export const createTeamPaymentOrder = async (req, res) => {
   try {
-    const { schoolRegId, payerEmail, teams } = req.body;
-    if (!schoolRegId || !payerEmail || !Array.isArray(teams) || teams.length === 0) {
+    const { schoolRegId, teams } = req.body;
+
+    if (!schoolRegId || !Array.isArray(teams) || teams.length === 0) {
+      console.log("DEBUG: Missing required fields", req.body);
       return res.status(400).json({ success: false, message: "Missing required fields." });
     }
-    // Validate school exists
+
     const school = await School.findOne({ schoolRegId });
     if (!school) {
+      console.log("DEBUG: School not found", schoolRegId);
       return res.status(404).json({ success: false, message: "School not found." });
     }
-    // Validate teams (basic)
+
+    const payerEmail = school.schoolEmail;
+
+    const existingTeams = await Team.find({ schoolRegId });
+    if (existingTeams.length + teams.length > 10) {
+      console.log("DEBUG: Team limit exceeded", {
+        existing: existingTeams.length,
+        incoming: teams.length,
+      });
+      return res.status(400).json({
+        success: false,
+        message: `Cannot register more than 10 teams. Already: ${existingTeams.length}`,
+      });
+    }
+
     for (const team of teams) {
-      if (!team.teamNumber || !team.teamSize || !team.event || !Array.isArray(team.members) || team.members.length !== team.teamSize) {
-        return res.status(400).json({ success: false, message: `Invalid team data for teamNumber ${team.teamNumber}` });
+      if (
+        !team.teamNumber ||
+        !team.teamSize ||
+        !team.event ||
+        !Array.isArray(team.members) ||
+        team.members.length !== team.teamSize
+      ) {
+        console.log("DEBUG: Invalid team data", team);
+        return res.status(400).json({ success: false, message: `Invalid team data for team ${team.teamNumber}` });
       }
     }
-    // Calculate total amount
-    const totalAmount = teams.reduce((sum, t) => sum + (t.teamSize * 499), 0);
-    // Create Razorpay order
+
+    const totalAmount = teams.reduce((sum, t) => sum + t.teamSize * 499, 0);
+
     const order = await razorpay.orders.create({
-      amount: totalAmount * 100, // in paise
+      amount: totalAmount * 100,
       currency: "INR",
       receipt: `team_reg_${Date.now()}`,
-      notes: { schoolRegId, payerEmail },
+      notes: {
+        schoolRegId,
+        payerEmail,
+        teams: JSON.stringify(teams),
+      },
     });
-    // Save TeamPayment doc
-    await TeamPayment.create({
-      orderId: order.id,
-      amount: totalAmount,
-      payerEmail,
-      schoolRegId,
-      teamsSnapshot: teams,
-      paymentStatus: 'created',
-    });
+
     res.status(200).json({ success: true, order });
   } catch (err) {
     console.error("Team payment order creation failed:", err);
@@ -65,7 +85,7 @@ export const verifyTeamPaymentAndRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing payment data." });
     }
 
-    // Step 1: Verify Razorpay signature
+    // Verify Razorpay signature
     const secret = process.env.RAZORPAY_KEY_SECRET;
     const generatedSignature = crypto
       .createHmac("sha256", secret)
@@ -76,17 +96,16 @@ export const verifyTeamPaymentAndRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid signature." });
     }
 
-    // Step 2: Find the payment record (query by orderId, not paymentId)
     const teamPayment = await TeamPayment.findOne({ orderId: razorpay_order_id });
 
     if (!teamPayment) {
       return res.status(202).json({
         status: "pending",
-        message: "Payment captured but not recorded yet. Please retry shortly.",
+        message: "Payment captured but registration is not complete yet. Please retry shortly.",
       });
     }
 
-    // If webhook hasn't processed registration yet (race condition)
+    // If webhook hasn't processed registration yet
     if (!teamPayment.paymentId) {
       return res.status(202).json({
         status: "processing",
@@ -94,15 +113,17 @@ export const verifyTeamPaymentAndRegister = async (req, res) => {
       });
     }
 
-    // If registration is done
+    // If registration completed
     if (teamPayment.verified) {
+      const teams = await Team.find({ teamRegId: { $in: teamPayment.teamIds } }).lean();
+
       return res.status(200).json({
-        success: true, // <-- Added for frontend compatibility
+        success: true,
         status: "registered",
         schoolRegId: teamPayment.schoolRegId,
-        teams: (teamPayment.teamIds || []).map((teamRegId, idx) => ({
-          teamRegId,
-          teamNumber: teamPayment.teamsSnapshot?.[idx]?.teamNumber || idx + 1,
+        teams: teams.map(t => ({
+          teamRegId: t.teamRegId,
+          teamNumber: t.teamNumber,
         })),
         pdfBase64: teamPayment.pdfBase64 || null,
         pdfFileName: teamPayment.pdfFileName || null,
@@ -111,7 +132,7 @@ export const verifyTeamPaymentAndRegister = async (req, res) => {
       });
     }
 
-    // If marked as failed
+    // If failed
     if (teamPayment.paymentStatus === "failed") {
       return res.status(200).json({
         success: false,
@@ -120,7 +141,6 @@ export const verifyTeamPaymentAndRegister = async (req, res) => {
       });
     }
 
-    // Otherwise still pending
     return res.status(202).json({
       success: false,
       status: "pending",

@@ -1,5 +1,5 @@
 import express from "express";
-import { getTeamDetails, listTeams,listAllTeams, qualifyTeam, listTeamStats, validateSchoolAndTeamCount, registerTeamsBatch } from "../../controllers/team/teamController.js";
+import { getTeamDetails, listTeams,listAllTeams, qualifyTeam, listTeamStats, validateSchoolAndTeamCount, registerTeamsBatch,savePendingTeamRegistration } from "../../controllers/team/teamController.js";
 import { createTeamPaymentOrder, verifyTeamPaymentAndRegister } from "../../controllers/team/teamPaymentController.js";
 import { downloadTeamPDF } from "../../controllers/downloadPDF.js";
 
@@ -32,5 +32,7 @@ router.post("/registerBatch", registerTeamsBatch);
 // Team Payment Endpoints (independent from school payment)
 router.post("/payment/create-order", createTeamPaymentOrder);
 router.post("/payment/verify", verifyTeamPaymentAndRegister);
+
+router.post('/savePending', savePendingTeamRegistration);
 
 export default router;

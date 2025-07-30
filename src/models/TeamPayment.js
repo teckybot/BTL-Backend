@@ -1,41 +1,28 @@
-// models/TeamPayment.js
+
 import mongoose from "mongoose";
 
-const memberSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  classGrade: { type: String, required: true },
-  gender: { type: String, required: true },
-}, { _id: false });
-
-const teamSnapshotSchema = new mongoose.Schema({
-  teamNumber: { type: Number, required: true },
-  teamSize: { type: Number, required: true },
-  event: { type: String, required: true },
-  members: { type: [memberSchema], required: true },
-}, { _id: false });
-
 const teamPaymentSchema = new mongoose.Schema({
-  orderId: { type: String, required: true, unique: true },
-  paymentId: { type: String, unique: true, sparse: true },
+  orderId: { type: String, required: true, unique: true }, // Razorpay order ID
+  paymentId: { type: String, unique: true, sparse: true }, // Razorpay payment ID (after success)
 
-  schoolRegId: { type: String, required: true },
-  payerEmail: { type: String, required: true, lowercase: true },
-  teamsSnapshot: { type: [teamSnapshotSchema], required: true },
+  schoolRegId: { type: String, required: true },           // Link to the school
+  payerEmail: { type: String, required: true, lowercase: true }, // Will be school email
 
-  amount: { type: Number, required: true },
-  paidAt: { type: Date },
-  paymentStatus: { type: String, default: 'created' }, // created, paid, failed
-  verified: { type: Boolean, default: false },
-  failureReason: { type: String }, // for failed payments
+  amount: { type: Number, required: true },                // Total payment amount
 
-  emailSent: { type: Boolean, default: false },
+  paidAt: { type: Date },                                  // Timestamp of successful payment
+  paymentStatus: { type: String, default: "created" },     // created, paid, failed
+  verified: { type: Boolean, default: false },             // Payment verified flag
+  failureReason: { type: String },                         // If failed
 
-  // NEW FIELDS (for webhook registration results)
-  teamIds: { type: [String], default: [] },  // Registered team IDs
-  pdfBase64: { type: String, default: null }, // Registration PDF
-  pdfFileName: { type: String, default: null },
+  emailSent: { type: Boolean, default: false },            // Whether confirmation email was sent
 
-  paymentMeta: { type: Object }, // Razorpay metadata if needed
+  // After successful payment, these fields get filled:
+  teamIds: { type: [String], default: [] },                // List of teamRegIds created
+  pdfBase64: { type: String, default: null },              // PDF generated after registration
+  pdfFileName: { type: String, default: null },            // PDF filename
+
+  paymentMeta: { type: Object },                           // Any extra data from Razorpay
 }, { timestamps: true });
 
 export default mongoose.model("TeamPayment", teamPaymentSchema);

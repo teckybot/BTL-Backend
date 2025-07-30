@@ -1,12 +1,11 @@
 // services/teamRegistrationService.js
 import School from "../models/School.js";
 import Team from "../models/Team.js";
-import Counter from "../models/Counter.js";
 import { sendTeamConfirmationEmailDirect } from "../services/mailservice2.js";
 import { generateBatchTeamPDF } from "../services/pdfService.js";
 import { eventCodeMap } from "../constants/eventCodes.js";
-import { getStateCode } from "../utils/stateCodeUtils.js";
 import { generateTeamId } from "../utils/teamIdGenerator.js";
+import { getCurrentTeamSequence, incrementTeamSequence } from "../services/sequenceService.js";
 
 export const registerTeamsBatchService = async (schoolRegId, teams) => {
   try {
@@ -29,26 +28,19 @@ export const registerTeamsBatchService = async (schoolRegId, teams) => {
     const usedNumbers = new Set(existingTeams.map(t => t.teamNumber));
     const eventCodeMapKeys = Object.keys(eventCodeMap);
     const state = school.state;
-    let currentSequences = {};
-    let newTeams = [];
 
-    // Find highest existing team sequence per event
-    const eventHighestSeq = {};
+    let newTeams = [];
+    const sequenceTrackers = {};
+
+    // Get the current sequence for each event (peek, no increment yet)
     for (const team of teams) {
       const { event } = team;
-      if (!eventHighestSeq[event]) {
-        const stateCode = getStateCode(state);
-        const regex = new RegExp(`^${stateCode}${event}`);
-        const lastTeam = await Team.find({ event, state, teamRegId: { $regex: regex } })
-          .sort({ teamRegId: -1 })
-          .limit(1);
-        eventHighestSeq[event] = lastTeam.length > 0
-          ? parseInt(lastTeam[0].teamRegId.slice(-3), 10)
-          : 0;
+      if (!sequenceTrackers[event]) {
+        sequenceTrackers[event] = await getCurrentTeamSequence(event, state);
       }
     }
 
-    // Build teams
+    // Build the teams and generate IDs sequentially
     for (const team of teams) {
       const { teamSize, event, members, teamNumber } = team;
 
@@ -60,13 +52,10 @@ export const registerTeamsBatchService = async (schoolRegId, teams) => {
       }
       usedNumbers.add(teamNumber);
 
-      if (!currentSequences[event]) {
-        currentSequences[event] = eventHighestSeq[event];
-      }
-      currentSequences[event] += 1;
+      // Increment local tracker for this event
+      sequenceTrackers[event] += 1;
 
-      const teamRegId = generateTeamId(event, currentSequences[event], state);
-
+      const teamRegId = generateTeamId(event, sequenceTrackers[event], state);
       newTeams.push({
         schoolRegId,
         teamSize,
@@ -78,10 +67,22 @@ export const registerTeamsBatchService = async (schoolRegId, teams) => {
       });
     }
 
-    // Insert teams in DB
+    // Save teams to DB
     const insertedTeams = await Team.insertMany(newTeams);
 
-    // Generate PDF
+    // Update the sequence counter for each event after saving
+    for (const [event, finalSeq] of Object.entries(sequenceTrackers)) {
+      // Set the counter to the highest value reached in this batch
+      const current = await getCurrentTeamSequence(event, state);
+      if (finalSeq > current) {
+        // Update the counter to the latest (atomic increment not needed here since we already generated IDs)
+        while (await getCurrentTeamSequence(event, state) < finalSeq) {
+          await incrementTeamSequence(event, state);
+        }
+      }
+    }
+
+    // Generate PDF (optional)
     let pdfBase64 = null;
     let pdfFileName = null;
     try {
@@ -90,15 +91,6 @@ export const registerTeamsBatchService = async (schoolRegId, teams) => {
       pdfFileName = `Team_Registration_Details_${school.schoolRegId}.pdf`;
     } catch (err) {
       console.error("PDF generation failed:", err);
-    }
-
-    // Update counters
-    for (const event of Object.keys(currentSequences)) {
-      await Counter.findOneAndUpdate(
-        { type: "team", key: `${getStateCode(state)}${event}` },
-        { $set: { sequence_value: currentSequences[event] } },
-        { upsert: true }
-      );
     }
 
     // Send confirmation email

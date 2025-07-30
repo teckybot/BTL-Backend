@@ -1,4 +1,3 @@
-
 import crypto from "crypto";
 import TeamPayment from "../models/TeamPayment.js";
 import { registerTeamsBatchService } from "../services/teamRegistrationService.js";
@@ -6,109 +5,127 @@ import { registerTeamsBatchService } from "../services/teamRegistrationService.j
 const handleTeamWebhook = async (req, res) => {
   console.log("Team webhook route hit");
 
-  // Step 1: Read raw buffer for signature verification
-  const rawBody = req.body.toString("utf8");
-  const signature = req.headers["x-razorpay-signature"];
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET_TEAM;
-
-  // Step 2: Verify Razorpay signature
-  const expectedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody)
-    .digest("hex");
-
-  if (signature !== expectedSignature) {
-    console.error("Invalid team webhook signature");
-    console.error("Expected:", expectedSignature);
-    console.error("Received:", signature);
-    return res.status(400).send("Invalid signature");
-  }
-
-  // Step 3: Parse the webhook payload
-  let body;
   try {
-    body = JSON.parse(rawBody);
+    const rawBody = req.body.toString("utf8");
+    const signature = req.headers["x-razorpay-signature"];
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET_TEAM;
+
+    // Verify Razorpay signature
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(rawBody)
+      .digest("hex");
+
+    if (signature !== expectedSignature) {
+      console.error("Invalid team webhook signature");
+      return res.status(400).send("Invalid signature");
+    }
+
+    // Parse Razorpay payload
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (err) {
+      console.error("Invalid JSON in team webhook:", err);
+      return res.status(400).send("Invalid JSON");
+    }
+
+    const event = body.event;
+
+    // --- Payment Captured ---
+    if (event === "payment.captured") {
+      const payment = body.payload.payment.entity;
+      const orderId = payment.order_id;
+      const schoolRegId = payment.notes?.schoolRegId;
+      const teamsRaw = payment.notes?.teams;
+      let teams;
+
+      try {
+        teams = teamsRaw ? JSON.parse(teamsRaw) : [];
+      } catch {
+        console.error("Invalid teams data in Razorpay notes for", orderId);
+        return res.status(400).send("Invalid teams data");
+      }
+
+      // Allow multiple registrations per school
+      const existingPayment = await TeamPayment.findOne({
+        orderId,
+        paymentStatus: "paid",
+        verified: true,
+      });
+
+      if (existingPayment) {
+        console.warn(`Duplicate webhook for order ${orderId}`);
+        return res.status(200).send("Payment already processed for this order.");
+      }
+
+
+      try {
+        // Register the teams (DB + email + PDF)
+        const result = await registerTeamsBatchService(schoolRegId, teams);
+
+        // Save the TeamPayment record (only now, after successful payment)
+        const teamPayment = new TeamPayment({
+          orderId,
+          paymentId: payment.id,
+          schoolRegId,
+          payerEmail: payment.email || "", // fallback if missing
+          amount: payment.amount / 100,
+          paidAt: new Date(),
+          paymentStatus: "paid",
+          verified: true,
+          teamIds: result.teams.map(t => t.teamRegId),
+          pdfBase64: result.pdfBase64,
+          pdfFileName: result.pdfFileName,
+          paymentMeta: payment,
+        });
+        await teamPayment.save();
+
+        console.log(`Team registration completed for ${schoolRegId}`);
+        return res.status(200).send("Team registration completed after payment");
+      } catch (err) {
+        console.error("Error in team payment webhook:", err);
+        await TeamPayment.updateOne(
+          { orderId },
+          {
+            $set: {
+              paymentStatus: "failed",
+              failureReason: err.message || "Team registration failed",
+            },
+          },
+          { upsert: true } // Ensure we still log failed payment
+        );
+        return res.status(500).send("Failed to register teams: " + err.message);
+      }
+    }
+
+    // --- Payment Failed ---
+    if (event === "payment.failed") {
+      const payment = body.payload.payment.entity;
+      try {
+        await TeamPayment.updateOne(
+          { orderId: payment.order_id },
+          {
+            $set: {
+              paymentStatus: "failed",
+              failureReason: payment.error_description || "Unknown",
+            },
+          },
+          { upsert: true }
+        );
+        console.warn(`Team payment failed for order ${payment.order_id}`);
+        return res.status(200).send("Team payment failure recorded");
+      } catch (err) {
+        console.error("Error marking team payment as failed:", err);
+        return res.status(500).send("Error recording failure");
+      }
+    }
+
+    return res.status(200).send("Unhandled event");
   } catch (err) {
-    console.error("Invalid JSON in team webhook:", err);
-    return res.status(400).send("Invalid JSON");
+    console.error("Webhook error:", err);
+    return res.status(500).send("Internal Server Error");
   }
-
-  const event = body.event;
-
-  // Handle Payment Captured
-  if (event === "payment.captured") {
-    const payment = body.payload.payment.entity;
-    const orderId = payment.order_id;
-
-    try {
-      const teamPayment = await TeamPayment.findOne({ orderId });
-      if (!teamPayment) {
-        console.error(`No TeamPayment record found for order ${orderId}`);
-        return res.status(200).send("No matching team payment record");
-      }
-
-      // Already processed? Ignore
-      if (teamPayment.verified) {
-        return res.status(200).send("Team payment already processed");
-      }
-
-      // Run the team registration logic (DB + Email + PDF)
-      const result = await registerTeamsBatchService(
-        teamPayment.schoolRegId,
-        teamPayment.teamsSnapshot
-      );
-
-      // Save payment info + results
-      teamPayment.verified = true;
-      teamPayment.paymentId = payment.id;
-      teamPayment.paidAt = new Date();
-      teamPayment.paymentStatus = "paid";
-      teamPayment.teamIds = result.teams.map(t => t.teamRegId);
-      teamPayment.pdfBase64 = result.pdfBase64;
-      teamPayment.pdfFileName = result.pdfFileName;
-      await teamPayment.save();
-
-      console.log(`Team registration complete for order ${orderId}`);
-      return res.status(200).send("Team registration completed after payment");
-    } catch (err) {
-      console.error("Error in team payment webhook:", err);
-      await TeamPayment.updateOne(
-        { orderId },
-        {
-          $set: {
-            paymentStatus: "failed",
-            failureReason: err.message || "Team registration failed",
-          },
-        }
-      );
-
-      return res.status(500).send("Failed to register teams: " + err.message);
-    }
-  }
-
-  // Handle Payment Failed
-  if (event === "payment.failed") {
-    const payment = body.payload.payment.entity;
-    try {
-      await TeamPayment.updateOne(
-        { orderId: payment.order_id },
-        {
-          $set: {
-            paymentStatus: "failed",
-            failureReason: payment.error_description || "Unknown",
-          },
-        }
-      );
-      console.warn(`Team payment failed for order ${payment.order_id}`);
-      return res.status(200).send("Team payment failure recorded");
-    } catch (err) {
-      console.error("Error marking team payment as failed:", err);
-      return res.status(500).send("Error recording failure");
-    }
-  }
-
-  // Other events (ignore)
-  return res.status(200).send("Unhandled event");
 };
 
 export default handleTeamWebhook;

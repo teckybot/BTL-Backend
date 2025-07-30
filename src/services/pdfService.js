@@ -44,7 +44,7 @@ export const generateSchoolPDF = (schoolData) => {
       const centerX = doc.page.width / 2;
       // Title line
       doc.font("Helvetica-Bold").fontSize(22).fillColor("#ff8c00");
-      const titleText = "School Registration Successfully";
+      const titleText = "School Registration Successful";
       const titleWidth = doc.widthOfString(titleText);
       doc.text(titleText, centerX - titleWidth / 2, titleStartY);
       // Subtitle line
@@ -210,7 +210,7 @@ export const generateBatchTeamPDF = (schoolData, teamsData, eventCodeMap) => {
         .fillColor("#1a73e8");
 
       // Measure title width for exact center placement
-      const titleText = "Teams Registered Successfully";
+      const titleText = "Teams Registered Successful";
       const titleWidth = doc.widthOfString(titleText);
       doc.text(titleText, centerX - titleWidth / 2, titleStartY);
 
