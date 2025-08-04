@@ -1,9 +1,11 @@
-// routes/submissionRoutes.js
+
 import express from "express";
-import { handleVideoSubmission } from "../../controllers/videosubController/submissionController.js";
+import { handleDynamicSubmission, checkSubmissionStatus  } from "../../controllers/videosubController/submissionController.js";
+
 
 const router = express.Router();
+router.post("/dynamic-upload", handleDynamicSubmission);;
 
-router.post("/upload", handleVideoSubmission);
+router.get("/check/:teamRegId", checkSubmissionStatus);
 
 export default router;

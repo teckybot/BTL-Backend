@@ -15,6 +15,15 @@ import qualifierRoutes from "./routes/qualifierRoutes.js";
 
 import aiWorkshopRoutes from "./routes/aiWorkshopRoutes.js";
 
+// --- NEW IMPORTS FOR OAUTH2 ---
+import { oAuth2Client, getOAuth2Client } from './authSetup.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 dotenv.config();
 
@@ -22,10 +31,10 @@ const app = express();
 app.set('trust proxy', 1);
 // Configure CORS with specific options
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : ['http://localhost:5173', 'http://127.0.0.1:5173','https://btlregistrationsystem.vercel.app','https://bharatteckleague.vercel.app','https://www.bharatteckleague.com'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS','PATCH'],
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://btlregistrationsystem.vercel.app', 'https://bharatteckleague.vercel.app', 'https://www.bharatteckleague.com'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
@@ -77,6 +86,52 @@ const strictLimiter = rateLimit({
 // Apply global limiter AFTER body parsing & cors
 app.use(globalLimiter);
 
+// --- ADD THE NEW OAUTH2 CALLBACK ROUTE HERE ---
+// app.get('/oauth2callback', async (req, res) => {
+//   const code = req.query.code;
+//   if (!code) {
+//     return res.status(400).send('Authorization code missing from redirect.');
+//   }
+
+//   try {
+//     const { tokens } = await oAuth2Client.getToken(code);
+//     oAuth2Client.setCredentials(tokens);
+
+//     const TOKEN_PATH = path.join(__dirname, 'token.json'); // This will save to the root of your project
+//     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+
+//     console.log('Authorization successful! Tokens saved to token.json');
+//     res.send('Authorization successful! You can now close this tab.');
+//   } catch (err) {
+//     console.error('Error retrieving access token:', err);
+//     res.status(500).send('Authorization failed. Check your console for details.');
+//   }
+// });
+
+app.get('/oauth2callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res.status(400).send('Authorization code missing from redirect.');
+  }
+
+  try {
+    const { tokens } = await oAuth2Client.getToken(code);
+    oAuth2Client.setCredentials(tokens);
+
+    console.log("Tokens:", tokens);
+    
+    const TOKEN_PATH = path.join(__dirname, 'token.json');
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+
+    // console.log('Authorization successful! Tokens saved to token.json');
+    res.send('Authorization successful! You can now close this tab.');
+  } catch (err) {
+    console.error('Error retrieving access token:', err);
+    res.status(500).send('Authorization failed. Check your console for details.');
+  }
+});
+
+
 // Apply strict limiter ONLY on /api/payments/create-order POST route
 // app.use("/api/payments/create-order", strictLimiter); 
 
@@ -124,6 +179,8 @@ mongoose
     const PORT = process.env.PORT || 5001;
     app.listen(PORT, () => {
       console.log(`Server running at http://localhost:${PORT}`);
+
+      getOAuth2Client();
     });
   })
   .catch((err) => {

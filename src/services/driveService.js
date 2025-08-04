@@ -1,28 +1,23 @@
-// services/driveService.js
+// src/services/driveService.js
 import { google } from "googleapis";
 import fs from "fs";
+import { getOAuth2Client } from "../authSetup.js"; // New import
 
-const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
-const FIXED_FOLDER_ID = "1UB3VjCQzDzQPhGOYDaLfngOoOnvnEE54"; // permanent Drive folder
+// Remove the old SCOPES and credentials logic.
 
 export const getDriveClient = async () => {
-  const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS); // from env var
-
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: SCOPES,
-  });
-
-  const authClient = await auth.getClient();
+  const authClient = await getOAuth2Client();
   return google.drive({ version: "v3", auth: authClient });
 };
 
-export const uploadFileToDrive = async (filePath, filename, mimeType) => {
+// The uploadFileToDrive function remains the same.
+// It will now use the client that is authorized to access your personal Drive.
+export const uploadFileToDrive = async (filePath, filename, mimeType, folderId) => {
   const drive = await getDriveClient();
 
   const fileMetadata = {
     name: filename,
-    parents: [FIXED_FOLDER_ID],
+    parents: [folderId],
   };
 
   const media = {
@@ -34,6 +29,7 @@ export const uploadFileToDrive = async (filePath, filename, mimeType) => {
     resource: fileMetadata,
     media,
     fields: "id, webViewLink, webContentLink",
+    supportsAllDrives: true,
   });
 
   return response.data;

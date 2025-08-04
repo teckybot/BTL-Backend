@@ -5,7 +5,7 @@ import { generateTeamId } from "../../utils/teamIdGenerator.js";
 import { getCurrentTeamSequence, incrementTeamSequence } from "../../services/sequenceService.js";
 import { getEventAvailabilityForSchool } from "../../services/eventService.js";
 import { sendTeamBatchConfirmationEmail } from "../../services/mailService.js";
-import VideoSubmission from "../../models/VideoSubmission.js";
+import Submission from "../../models/OnlineSubmission.js";
 import { generateTeamTableMerge } from "../../utils/emailMergeInfo.js";
 import { sendTeamConfirmationEmailDirect } from '../../services/mailservice2.js';
 import { getStateCode } from "../../utils/stateCodeUtils.js";
@@ -212,7 +212,7 @@ export const listTeams = async (req, res) => {
       .lean();
 
     // Add district & submitted status
-    const videoSubs = await VideoSubmission.find({});
+    const videoSubs = await Submission.find({});
     const submittedSet = new Set(videoSubs.map(v => v.teamRegId));
 
     teams = await Promise.all(teams.map(async (team) => {
@@ -257,7 +257,7 @@ export const listAllTeams = async (req, res) => {
     }
 
     let teams = await Team.find(filter).lean();
-    const videoSubs = await VideoSubmission.find({});
+    const videoSubs = await Submission.find({});
     const submittedSet = new Set(videoSubs.map(v => v.teamRegId));
 
     teams = await Promise.all(teams.map(async (team) => {
