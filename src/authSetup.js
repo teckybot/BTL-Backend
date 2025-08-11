@@ -1,68 +1,110 @@
-// src/authSetup.js
 import { google } from "googleapis";
-import fs from "fs"; // Not needed if you're not writing a token file
-import path from "path"; // Not needed if you're not writing a token file
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import fs from "fs";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-
-// These are now read from the .env file
 const {
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
-  GOOGLE_REDIRECT_URI
+  GOOGLE_REDIRECT_URI,
+  GOOGLE_REFRESH_TOKEN
 } = process.env;
 
-// The scope we need for the Drive API
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
-// Initialize the OAuth2 client using .env variables
 export const oAuth2Client = new google.auth.OAuth2(
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI
 );
 
-// This function handles the initial authorization or token refresh
-export const getOAuth2Client = async () => {
-  // Check if a REFRESH_TOKEN exists in environment variables first
-  const existingRefreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-  if (existingRefreshToken) {
-    oAuth2Client.setCredentials({ refresh_token: existingRefreshToken });
+/**
+ * Generates the Google OAuth URL for consent
+ */
+function generateAuthUrl() {
+  return oAuth2Client.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: SCOPES,
+  });
+}
+
+/**
+ * Checks if token is going to expire soon (default: 5 minutes)
+ */
+function isTokenExpiringSoon(client, thresholdMs = 5 * 60 * 1000) {
+  const expiryDate = client.credentials.expiry_date;
+  return !expiryDate || expiryDate - Date.now() < thresholdMs;
+}
+
+/**
+ * Save refresh token to .env file
+ */
+function saveRefreshToken(refreshToken) {
+  let envData = fs.readFileSync(".env", "utf8");
+  if (envData.includes("GOOGLE_REFRESH_TOKEN")) {
+    envData = envData.replace(/GOOGLE_REFRESH_TOKEN=.*/g, `GOOGLE_REFRESH_TOKEN=${refreshToken}`);
   } else {
-    // If no refresh token in .env, fall back to the interactive authorization flow
-    console.log("No refresh token found in .env. Starting authorization process...");
-    authorizeUser();
-    return null; // Don't return client until authorized
+    envData += `\nGOOGLE_REFRESH_TOKEN=${refreshToken}`;
+  }
+  fs.writeFileSync(".env", envData);
+  console.log("💾 New refresh token saved to .env");
+}
+
+/**
+ * Handles refreshing access token or re-auth if needed
+ */
+export const getOAuth2Client = async () => {
+  if (!GOOGLE_REFRESH_TOKEN) {
+    console.log("⚠ No refresh token found — waiting for user to authorize...");
+    console.log("🔑 Visit this URL:", generateAuthUrl());
+    return null;
   }
 
-  if (oAuth2Client.isTokenExpiring()) {
-    console.log('Access token is expiring, refreshing...');
-    try {
-      const { credentials } = await oAuth2Client.refreshAccessToken();
-      oAuth2Client.setCredentials(credentials);
-      console.log('Token refreshed.');
-    } catch (err) {
-      console.error('Error refreshing access token:', err);
-      // If refresh fails, something is wrong with the refresh token. Re-authorize.
-      authorizeUser();
-      return null;
+  oAuth2Client.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
+
+  try {
+    if (isTokenExpiringSoon(oAuth2Client)) {
+      console.log("♻ Refreshing Google Drive access token...");
+      const accessTokenResponse = await oAuth2Client.getAccessToken();
+
+      if (!accessTokenResponse?.token) {
+        throw new Error("Failed to refresh access token");
+      }
+
+      oAuth2Client.setCredentials({
+        refresh_token: GOOGLE_REFRESH_TOKEN,
+        access_token: accessTokenResponse.token
+      });
+
+      console.log("✅ Google Drive token refreshed successfully");
     }
+  } catch (err) {
+    if (err.message.includes("invalid_grant")) {
+      console.error("❌ Refresh token invalid/revoked. Awaiting re-authorization...");
+      console.log("🔑 Visit this URL to reauthorize:", generateAuthUrl());
+
+      // Keep printing URL every 10 minutes until authorized
+      setInterval(() => {
+        console.log("🔑 Re-authorization still required. Visit:", generateAuthUrl());
+      }, 10 * 60 * 1000);
+    } else {
+      console.error("❌ Unexpected token refresh error:", err);
+    }
+    return null;
   }
+
   return oAuth2Client;
 };
 
-// This function generates the authorization URL
-function authorizeUser() {
-  const authUrl = oAuth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: SCOPES,
-  });
-  // console.log('Authorize this app by visiting this URL:');
-  // console.log(authUrl);
+/**
+ * Called from /oauth2callback after authorization
+ */
+export function handleNewTokens(tokens) {
+  oAuth2Client.setCredentials(tokens);
+
+  if (tokens.refresh_token) {
+    saveRefreshToken(tokens.refresh_token);
+  }
 }

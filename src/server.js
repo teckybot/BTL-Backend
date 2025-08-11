@@ -16,7 +16,7 @@ import qualifierRoutes from "./routes/qualifierRoutes.js";
 import aiWorkshopRoutes from "./routes/aiWorkshopRoutes.js";
 
 // --- NEW IMPORTS FOR OAUTH2 ---
-import { oAuth2Client, getOAuth2Client } from './authSetup.js';
+import { oAuth2Client, getOAuth2Client, handleNewTokens } from './authSetup.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -110,24 +110,16 @@ app.use(globalLimiter);
 
 app.get('/oauth2callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) {
-    return res.status(400).send('Authorization code missing from redirect.');
-  }
+  if (!code) return res.status(400).send('Authorization code missing.');
 
   try {
     const { tokens } = await oAuth2Client.getToken(code);
-    oAuth2Client.setCredentials(tokens);
+    handleNewTokens(tokens);
 
-    console.log("Tokens:", tokens);
-    
-    const TOKEN_PATH = path.join(__dirname, 'token.json');
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-
-    // console.log('Authorization successful! Tokens saved to token.json');
-    res.send('Authorization successful! You can now close this tab.');
+    res.send("✅ Authorization successful! You can close this tab now.");
   } catch (err) {
-    console.error('Error retrieving access token:', err);
-    res.status(500).send('Authorization failed. Check your console for details.');
+    console.error("❌ Error during OAuth callback:", err);
+    res.status(500).send("Authorization failed.");
   }
 });
 
@@ -171,16 +163,28 @@ app.use((err, req, res, next) => {
   });
 });
 
+let refreshCheckCount = 0;
+
 // Connect MongoDB and start server
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB Connected");
     const PORT = process.env.PORT || 5001;
-    app.listen(PORT, () => {
+    app.listen(PORT, async () => {
       console.log(`Server running at http://localhost:${PORT}`);
 
-      getOAuth2Client();
+      // Run once on startup
+      refreshCheckCount++;
+      console.log(`[${refreshCheckCount}] [${new Date().toLocaleString()}] Initial token check...`);
+      await getOAuth2Client();
+
+      // Keep refreshing every 5 minutes
+      setInterval(async () => {
+        refreshCheckCount++;
+        console.log(`\n[${refreshCheckCount}] [${new Date().toLocaleString()}] Running scheduled token check...`);
+        await getOAuth2Client();
+      }, 5 * 60 * 1000);
     });
   })
   .catch((err) => {
