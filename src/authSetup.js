@@ -4,10 +4,17 @@ import fs from "fs";
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === "production";
+
+const redirectUri = isProduction
+  ? process.env.GOOGLE_REDIRECT_URI_PROD
+  : process.env.GOOGLE_REDIRECT_URI_LOCAL;
+
+console.log(`📍 Using redirect URI: ${redirectUri}`);
+
 const {
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
-  GOOGLE_REDIRECT_URI,
   GOOGLE_REFRESH_TOKEN
 } = process.env;
 
@@ -16,7 +23,7 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 export const oAuth2Client = new google.auth.OAuth2(
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
-  GOOGLE_REDIRECT_URI
+  redirectUri 
 );
 
 /**
